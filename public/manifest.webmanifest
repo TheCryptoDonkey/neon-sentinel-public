@@ -1,0 +1,30 @@
+{
+  "name": "Neon Sentinel",
+  "short_name": "NeonSentinel",
+  "description": "Neon Sentinel - a Nostr arcade rescue shooter. Hold the relay. Save the keys.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#02040b",
+  "theme_color": "#02040b",
+  "icons": [
+    {
+      "src": "/brand/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

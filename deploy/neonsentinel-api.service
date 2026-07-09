@@ -1,0 +1,21 @@
+[Unit]
+Description=Neon Sentinel claim API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/neonsentinel/current
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3190
+Environment=NEON_SENTINEL_DATA_DIR=/var/lib/neonsentinel
+EnvironmentFile=-/etc/neonsentinel-api.env
+ExecStart=/usr/bin/env node /opt/neonsentinel/current/server/index.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

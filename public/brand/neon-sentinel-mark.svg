@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Neon Sentinel mark</title>
+  <desc id="desc">A neon sentinel shield, radar arc, and sleek spacecraft emblem.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="66%">
+      <stop offset="0" stop-color="#123a4a"/>
+      <stop offset="0.58" stop-color="#06101b"/>
+      <stop offset="1" stop-color="#02040b"/>
+    </radialGradient>
+    <linearGradient id="cyanGold" x1="96" y1="86" x2="415" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f9fbff"/>
+      <stop offset="0.38" stop-color="#5effdb"/>
+      <stop offset="0.72" stop-color="#ff4d8d"/>
+      <stop offset="1" stop-color="#ffd84a"/>
+    </linearGradient>
+    <linearGradient id="hull" x1="122" y1="222" x2="392" y2="290" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.38" stop-color="#83fff2"/>
+      <stop offset="0.72" stop-color="#131b2a"/>
+      <stop offset="1" stop-color="#ffd84a"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.22 0 0 0 0 1 0 0 0 0 0.82 0 0 0 0.92 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="hot" x="-55%" y="-55%" width="210%" height="210%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 1 0 0 0 0 0.21 0 0 0 0 0.5 0 0 0 0.82 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="72" fill="url(#bg)"/>
+  <path d="M256 53 407 121v114c0 95-57 178-151 224C162 413 105 330 105 235V121L256 53Z" fill="rgba(2,4,11,0.68)" stroke="url(#cyanGold)" stroke-width="10" filter="url(#glow)"/>
+  <path d="M142 270c42 52 83 78 114 78s72-26 114-78" fill="none" stroke="#5effdb" stroke-width="9" stroke-linecap="round" opacity="0.66"/>
+  <path d="M172 205c24-33 52-49 84-49s60 16 84 49" fill="none" stroke="#ffd84a" stroke-width="7" stroke-linecap="round" opacity="0.82"/>
+  <path d="M111 164c77-60 213-61 290 0" fill="none" stroke="#ff4d8d" stroke-width="5" stroke-linecap="round" opacity="0.48"/>
+  <g filter="url(#glow)">
+    <path d="M93 262 225 211l36-53 34 53 124 51-124 30-36 73-39-73L93 262Z" fill="url(#hull)" stroke="#f9fbff" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M203 250h106l-54-79-52 79Z" fill="#07111f" opacity="0.72"/>
+    <path d="M145 265h222" stroke="#5effdb" stroke-width="6" stroke-linecap="round"/>
+    <path d="M216 292h82l-39 73-43-73Z" fill="#ff4d8d" opacity="0.82"/>
+  </g>
+  <circle cx="256" cy="256" r="22" fill="#02040b" stroke="#ffd84a" stroke-width="7" filter="url(#hot)"/>
+  <circle cx="256" cy="256" r="6" fill="#fff5d8"/>
+</svg>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#02040b" />
+  <meta name="description" content="Neon Sentinel - a Nostr arcade rescue shooter. Hold the relay. Save the keys." />
+  <meta name="neon-sentinel:value-uri" content="profusemeat89@walletofsatoshi.com" />
+  <meta name="neon-sentinel:geyser-url" content="https://geyser.fund/project/forgesworn?hero=geyserannually1" />
+  <meta name="neon-sentinel:kofi-url" content="https://ko-fi.com/brays" />
+  <meta property="og:title" content="Neon Sentinel" />
+  <meta property="og:description" content="A radar-first Nostr arcade rescue shooter. Hold the relay. Save the keys." />
+  <meta property="og:image" content="/brand/neon-sentinel-key-art-v2.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Neon Sentinel" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/brand/neon-sentinel-mark.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+  <link rel="preload" as="image" href="/backgrounds/generated/neon-sentinel-nasa-frontier.webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="/brand/neon-sentinel-key-art-v2.webp" fetchpriority="high" />
+  <title>Neon Sentinel</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <img src="/backgrounds/generated/neon-sentinel-nasa-frontier.webp" alt="" aria-hidden="true" decoding="async" fetchpriority="high" style="position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;" />
+  <img src="/brand/neon-sentinel-key-art-v2.webp" alt="" aria-hidden="true" decoding="async" fetchpriority="high" style="position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;" />
+  <canvas id="game" width="1280" height="720" aria-label="Neon Sentinel game"></canvas>
+  <canvas id="game3d" width="1280" height="720" aria-hidden="true"></canvas>
+  <div id="settings">
+    <button id="settings-toggle" type="button" aria-label="Display settings" aria-expanded="false">⚙</button>
+    <div id="settings-panel" data-open="false">
+      <div class="settings-row">
+        <span>VISUAL</span>
+        <div id="tier-controls" class="segmented"></div>
+      </div>
+      <div class="settings-row">
+        <span>MODE</span>
+        <div id="theme-controls" class="segmented"></div>
+      </div>
+      <div class="settings-row brightness-row">
+        <span>BRIGHT</span>
+        <div id="brightness-controls" class="brightness-controls"></div>
+      </div>
+      <div class="settings-row">
+        <span>SCREEN</span>
+        <div id="screen-controls" class="segmented"></div>
+      </div>
+      <div class="settings-row">
+        <span>ACCESS</span>
+        <div id="access-controls" class="segmented"></div>
+      </div>
+      <div class="settings-row relays-row">
+        <span>RELAYS</span>
+        <div id="relay-controls" class="relay-list"></div>
+      </div>
+      <div class="settings-row tuning-row">
+        <span>FEEL</span>
+        <div id="tune-controls" class="tune-list"></div>
+      </div>
+      <div class="settings-row audio-row">
+        <span>AUDIO</span>
+        <div id="audio-controls" class="audio-controls"></div>
+      </div>
+      <div class="settings-row music-row">
+        <span>MUSIC</span>
+        <div id="music-player" class="music-player"></div>
+      </div>
+      <div class="settings-row legal-row">
+        <span>INFO</span>
+        <div class="settings-links">
+          <a id="support-link" href="/support.html" rel="noopener">SUPPORT</a>
+          <a id="privacy-link" href="/privacy.html" rel="noopener">PRIVACY</a>
+        </div>
+      </div>
+      <div id="mesh-status"></div>
+    </div>
+  </div>
+  <div id="touch-controls" aria-hidden="true">
+    <div id="touch-stick"><div id="touch-knob"></div></div>
+    <button id="touch-fire" type="button" aria-label="Fire">◆</button>
+    <button id="touch-burst" type="button" aria-label="Zap burst">₿</button>
+  </div>
+  <div id="score-actions" aria-live="polite" hidden>
+    <button id="score-publish" type="button">SIGN SCORE</button>
+    <div id="value-action-group" aria-label="Value for value support" hidden>
+      <a id="value-support" class="value-link" href="#" rel="noopener" hidden>PAY SATS</a>
+      <a id="geyser-support" class="value-link" href="#" rel="noopener" target="_blank" hidden>GEYSER</a>
+      <a id="kofi-support" class="value-link" href="#" rel="noopener" target="_blank" hidden>KO-FI</a>
+    </div>
+    <span id="score-action-status">LOCAL SCORE · NO PAYOUT</span>
+  </div>
+  <script src="/signet/signet-login.iife.js" defer></script>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

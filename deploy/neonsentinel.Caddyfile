@@ -1,0 +1,66 @@
+# Neon Sentinel static SPA vhost.
+#
+# Intended hosts:
+#   neonsentinel.com
+#   app.neonsentinel.com
+#   www.neonsentinel.com
+#   neonsentinel.playechoseven.com
+#
+# Root should point at the release symlink created by
+# deploy/neonsentinel-static.sh:
+#   /opt/neonsentinel/current
+#
+# This block deliberately does not share roots or reverse proxies with
+# existing games. /api/* is isolated to the Neon Sentinel claim service.
+
+neonsentinel.com, app.neonsentinel.com, www.neonsentinel.com, neonsentinel.playechoseven.com {
+	encode gzip zstd
+	root * /opt/neonsentinel/current
+
+	# Security headers for every response from this vhost. The CSP is scoped to
+	# what the app actually loads: same-origin scripts/styles (index.html pulls
+	# /src/main.ts and /signet/*.iife.js, both same-origin), the two hidden
+	# <img style="..."> attributes in index.html (covered by style-src's
+	# unsafe-inline via the style-src-attr fallback — set explicitly below to
+	# avoid relying on that fallback), same-origin audio under /music/, and
+	# Nostr relay websockets (wss:) plus the same-origin /api/profile-image and
+	# /api/claim fetches (connect-src). No external fonts or CDN scripts are
+	# used, so no additional allowances are needed there.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' https: data: blob:; media-src 'self' blob:; connect-src 'self' https: wss:; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'"
+	}
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:3190
+	}
+
+	handle /healthz {
+		reverse_proxy 127.0.0.1:3190
+	}
+
+	@spa {
+		not path /api/* /healthz *.html *.js *.css *.map *.png *.jpg *.jpeg *.svg *.webp *.woff *.woff2 *.opus *.m4a *.mp3 *.json *.webmanifest *.ico *.txt
+	}
+	rewrite @spa /index.html
+
+	file_server
+
+	@hashed_real {
+		path /assets/* /music/* /backgrounds/* /brand/*
+		file
+	}
+	header @hashed_real Cache-Control "public, max-age=31536000, immutable"
+	header @spa Cache-Control "no-cache"
+	header /index.html Cache-Control "no-cache"
+	# The service worker and manifest must never be cached at the edge —
+	# Cloudflare's 4-hour .js default was delaying PWA updates on phones.
+	header /sw.js Cache-Control "no-cache, must-revalidate"
+	header /manifest.webmanifest Cache-Control "no-cache, must-revalidate"
+	# The in-app update banner polls this build stamp; a cached copy would
+	# hide new deploys from running PWAs.
+	header /version.json Cache-Control "no-cache, must-revalidate"
+}

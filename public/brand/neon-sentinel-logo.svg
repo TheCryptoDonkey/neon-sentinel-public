@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">Neon Sentinel logo</title>
+  <desc id="desc">Neon Sentinel wordmark with sentinel spacecraft emblem.</desc>
+  <defs>
+    <linearGradient id="word" x1="230" y1="94" x2="1170" y2="260" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f9fbff"/>
+      <stop offset="0.34" stop-color="#5effdb"/>
+      <stop offset="0.7" stop-color="#ff4d8d"/>
+      <stop offset="1" stop-color="#ffd84a"/>
+    </linearGradient>
+    <linearGradient id="stroke" x1="70" y1="60" x2="310" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5effdb"/>
+      <stop offset="0.55" stop-color="#ff4d8d"/>
+      <stop offset="1" stop-color="#ffd84a"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-60%" width="140%" height="220%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.22 0 0 0 0 1 0 0 0 0 0.84 0 0 0 0.75 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="1280" height="420" rx="44" fill="#02040b"/>
+  <path d="M74 94 189 43l115 51v86c0 75-43 138-115 173-72-35-115-98-115-173V94Z" fill="#06101b" stroke="url(#stroke)" stroke-width="8" filter="url(#glow)"/>
+  <path d="M103 204 168 178l21-35 21 35 66 26-66 16-21 45-22-45-64-16Z" fill="#f9fbff" stroke="#5effdb" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="190" cy="204" r="15" fill="#02040b" stroke="#ffd84a" stroke-width="6"/>
+  <path d="M109 241c34 36 61 53 80 53s46-17 80-53" fill="none" stroke="#5effdb" stroke-width="6" stroke-linecap="round" opacity="0.68"/>
+  <text x="350" y="188" fill="url(#word)" filter="url(#glow)"
+        font-family="Inter, Arial, Helvetica, sans-serif" font-size="104" font-weight="950" letter-spacing="5">NEON</text>
+  <text x="350" y="302" fill="#fff5d8"
+        font-family="Inter, Arial, Helvetica, sans-serif" font-size="94" font-weight="950" letter-spacing="4">SENTINEL</text>
+  <path d="M350 330H1115" stroke="#5effdb" stroke-width="5" stroke-linecap="round" opacity="0.68"/>
+  <path d="M350 350H820" stroke="#ffd84a" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <text x="840" y="356" fill="#8cffb4"
+        font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="24" font-weight="800" letter-spacing="4">HOLD THE RELAY</text>
+</svg>
