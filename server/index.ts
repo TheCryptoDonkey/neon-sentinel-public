@@ -122,7 +122,35 @@ createServer((req, res) => {
 }).listen(PORT, HOST, () => {
   console.log(`[api] Neon Sentinel claim service listening on ${HOST}:${PORT}`);
   console.log(`[api] signer ${gameSecret ? `ready ${gamePubkey}` : 'not configured'}`);
+  void publishGameProfile();
 });
+
+/** (Re)publish the game's kind-0 profile on boot. Kind 0 is replaceable so
+ *  this is idempotent — the game account stays fresh on the relays (gamestr
+ *  reads it for the listing) without a separate tool ever needing the nsec. */
+async function publishGameProfile(): Promise<void> {
+  if (!gameSecret || !PUBLISH_ENABLED) return;
+  try {
+    const profile = finalizeEvent({
+      kind: 0,
+      created_at: Math.floor(Date.now() / 1000),
+      content: JSON.stringify({
+        name: GAME_TITLE,
+        display_name: `${GAME_TITLE} 📡🔑`,
+        about: `Radar-first Nostr arcade rescue shooter — hold the relay, save the keys before the clock runs out. Scores land on gamestr as kind-30762, signed by this key. Play at ${GAME_URL}`,
+        website: GAME_URL,
+        picture: GAME_IMAGE_URL,
+        banner: 'https://neonsentinel.com/brand/neon-sentinel-key-art-v2.png',
+        bot: true,
+      }),
+      tags: [],
+    }, gameSecret);
+    const published = await publishSignedScore(profile);
+    console.log(`[api] game profile (kind 0) published to ${published.ok}/${published.total} relays`);
+  } catch (err) {
+    console.warn('[api] game profile publish failed:', err);
+  }
+}
 
 async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method === 'OPTIONS') {
