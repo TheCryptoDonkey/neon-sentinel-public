@@ -9,6 +9,7 @@ import {
   drawNetBeacon,
   drawScooterBeacon,
   drawShieldBeacon,
+  drawTimeLockBeacon,
   ROSE_PICKUP_URL,
   WHOLE_CAKE_PICKUP_URL,
 } from './pickup-icons.js';
@@ -62,7 +63,7 @@ export interface MeshBeacon {
   y: number;
   age: number;
   value: number;
-  kind?: 'rose' | 'cake-piece' | 'whole-cake' | '600b' | 'life' | 'shield' | 'relay' | 'charge' | 'zap' | 'net' | 'cult' | 'fourtwenty' | 'scooter' | 'multi';
+  kind?: 'rose' | 'cake-piece' | 'whole-cake' | '600b' | 'life' | 'shield' | 'relay' | 'charge' | 'zap' | 'net' | 'cult' | 'fourtwenty' | 'scooter' | 'multi' | 'timelock';
   /** Which of the cake-piece icon variants this beacon shows (matches the vector tier's Beacon.spriteIndex). */
   spriteIndex?: number;
 }
@@ -2730,6 +2731,7 @@ const iconMats = {
   cakePiece: CAKE_PICKUP_URLS.map(() => makeIconSpriteMaterial()),
   scooter: makeIconSpriteMaterial(),
   fourtwenty: makeIconSpriteMaterial(),
+  timelock: makeIconSpriteMaterial(),
   cult: makeIconSpriteMaterial(),
   shield: makeIconSpriteMaterial(),
   net: makeIconSpriteMaterial(),
@@ -2745,6 +2747,7 @@ CAKE_PICKUP_URLS.forEach((url, i) => loadIconImageMaterial(iconMats.cakePiece[i]
 // every frame like the vector tier's per-frame canvas draw.
 drawIconMaterial(iconMats.scooter, c => drawScooterBeacon(0, 0.5, c));
 drawIconMaterial(iconMats.fourtwenty, c => drawFourTwentyBeacon(0, 0.5, c));
+drawIconMaterial(iconMats.timelock, c => drawTimeLockBeacon(0, 0.5, c));
 drawIconMaterial(iconMats.cult, c => drawCultBeacon(0, 0.5, c));
 drawScreenBlendIconMaterial(iconMats.shield, c => drawShieldBeacon(0, 0.5, c));
 drawScreenBlendIconMaterial(iconMats.net, c => drawNetBeacon(0, 0.5, c));
@@ -2782,6 +2785,7 @@ function addBeacon(rootGroup: THREE.Group, frame: MeshFrame, beacon: MeshBeacon,
   else if (kind === 'net') addIconBeaconMesh(pool, iconMats.net, 100 * scale);
   else if (kind === 'cult') addIconBeaconMesh(pool, iconMats.cult, 100 * scale);
   else if (kind === 'fourtwenty') addIconBeaconMesh(pool, iconMats.fourtwenty, 100 * scale);
+  else if (kind === 'timelock') addIconBeaconMesh(pool, iconMats.timelock, 100 * scale);
   else if (kind === 'scooter') addIconBeaconMesh(pool, iconMats.scooter, 100 * scale);
   else if (kind === 'multi') addFanoutBeaconMesh(pool, scale);
   else addIconBeaconMesh(pool, iconMats.sixHundredB, 100 * scale);
@@ -2827,6 +2831,7 @@ function meshPickupScale(kind: MeshBeacon['kind']): number {
   if (kind === 'fourtwenty') return 2.96;
   if (kind === 'scooter') return 2.9;
   if (kind === 'multi') return 2.96;
+  if (kind === 'timelock') return 2.96;
   return 3;
 }
 
@@ -2905,6 +2910,7 @@ function addZapBeaconMesh(pool: ChildPool, frame: MeshFrame, scale: number): voi
 }
 
 function pickupRingMaterial(kind: MeshBeacon['kind']): THREE.MeshBasicMaterial {
+  if (kind === 'timelock') return mats.captureHot;
   if (kind === 'fourtwenty') return mats.signalRing;
   if (kind === 'scooter') return mats.laserGlow;
   if (kind === 'multi') return mats.laserAmber;
@@ -2916,6 +2922,7 @@ function pickupRingMaterial(kind: MeshBeacon['kind']): THREE.MeshBasicMaterial {
 }
 
 function pickupGlowMaterial(kind: MeshBeacon['kind']): THREE.SpriteMaterial {
+  if (kind === 'timelock') return glowMats.rose;
   if (kind === 'cult') return glowMats.rose;
   if (kind === 'fourtwenty') return glowMats.cyan;
   if (kind === 'scooter') return glowMats.cyan;

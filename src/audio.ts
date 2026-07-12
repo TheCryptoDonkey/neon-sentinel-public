@@ -1,4 +1,4 @@
-type ToneKind = 'laserArcade' | 'laserArcadeFanout' | 'laserThump' | 'hit' | 'enemyBoom' | 'enemyBoomArcade' | 'enemyDebris' | 'boom' | 'boomArcade' | 'shipBoom' | 'rescue' | 'rescueBass' | 'pickup' | 'pickupArcade' | 'oneUp' | 'extend' | 'comboTick' | 'overtake' | 'pickupShield' | 'pickupCharge' | 'pickupZap' | 'pickupNet' | 'pickupCake' | 'pickupJackpot' | 'pickupCult' | 'pickupFourTwenty' | 'pickupScooter' | 'pickupMulti' | 'trollFeed' | 'damage' | 'wave' | 'burst' | 'lock' | 'warning' | 'enemyFireArcade' | 'jamFire' | 'carrierFire' | 'nearMiss' | 'shotImpact' | 'musicSurge';
+type ToneKind = 'laserArcade' | 'laserArcadeFanout' | 'laserThump' | 'hit' | 'enemyBoom' | 'enemyBoomArcade' | 'enemyDebris' | 'boom' | 'boomArcade' | 'shipBoom' | 'rescue' | 'rescueBass' | 'pickup' | 'pickupArcade' | 'oneUp' | 'extend' | 'comboTick' | 'overtake' | 'pickupShield' | 'pickupCharge' | 'pickupZap' | 'pickupNet' | 'pickupCake' | 'pickupJackpot' | 'pickupCult' | 'pickupFourTwenty' | 'pickupScooter' | 'pickupMulti' | 'pickupTimeLock' | 'trollFeed' | 'damage' | 'wave' | 'burst' | 'lock' | 'warning' | 'enemyFireArcade' | 'jamFire' | 'carrierFire' | 'nearMiss' | 'shotImpact' | 'musicSurge';
 
 interface AudioFrame {
   playing: boolean;
@@ -369,6 +369,19 @@ export function playAudio(kind: ToneKind, intensity = 1, pitch = 1): void {
     chirp(700, 2600, 0.24, 'sawtooth', 0.038 * amp, 0.02, 2600, 'bandpass');
     noise(0.06, 0.05 * amp, 8200, 'highpass', 0.16);
     tone(98, 0.2, 'sine', 0.07 * amp, 0.01);
+  } else if (kind === 'pickupTimeLock') {
+    // TIME LOCKED: a heavy vault-bolt clunk, two dead clock ticks slowing to
+    // a stop, and a cold dissonant drone underneath — a pickup that sounds
+    // like a mistake the moment it lands.
+    pulseMusicDuck(0.7, 520);
+    chirp(420, 60, 0.16, 'square', 0.12 * amp, 0, 620, 'lowpass');
+    noise(0.05, 0.1 * amp, 900, 'lowpass', 0.01);
+    noise(0.02, 0.08 * amp, 2400, 'bandpass', 0.24);
+    noise(0.02, 0.07 * amp, 2100, 'bandpass', 0.52);
+    tone(98, 0.7, 'triangle', 0.06 * amp, 0.06);
+    tone(104, 0.7, 'triangle', 0.055 * amp, 0.08);
+    chirp(660, 590, 0.5, 'sine', 0.035 * amp, 0.12, 1100, 'lowpass');
+    tone(49, 0.6, 'sine', 0.07 * amp, 0.1);
   } else if (kind === 'trollFeed') {
     // Gulp: the troll swallows a laser bolt whole. Short and wet so it stays
     // readable under held fire.

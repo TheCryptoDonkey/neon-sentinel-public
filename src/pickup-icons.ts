@@ -139,6 +139,98 @@ export function drawFourTwentyBeacon(rot: number, pulse: number, ctx: CanvasRend
   ctx.restore();
 }
 
+export function drawTimeLockBeacon(rot: number, pulse: number, ctx: CanvasRenderingContext2D): void {
+  // The trap pickup: a heavy padlock clamped around a seized clock face.
+  // Danger-red where every other pickup glows friendly — the tell is there
+  // for players who read the room before they grab.
+  ctx.save();
+  ctx.rotate(Math.sin(rot * 0.5) * 0.08);
+  // Shackle over the top of the lock body.
+  ctx.strokeStyle = '#ff9aa4';
+  ctx.lineWidth = 5.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(0, -14, 14, Math.PI, Math.PI * 2);
+  ctx.stroke();
+  // Lock body: dark red steel, brightest at the top edge.
+  const body = ctx.createLinearGradient(0, -16, 0, 32);
+  body.addColorStop(0, '#8a1626');
+  body.addColorStop(0.4, '#47101c');
+  body.addColorStop(1, '#160409');
+  ctx.fillStyle = body;
+  ctx.strokeStyle = '#ff4d5e';
+  ctx.lineWidth = 2.4;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-17, -14);
+  ctx.lineTo(17, -14);
+  ctx.quadraticCurveTo(24, -14, 24, -7);
+  ctx.lineTo(24, 25);
+  ctx.quadraticCurveTo(24, 32, 17, 32);
+  ctx.lineTo(-17, 32);
+  ctx.quadraticCurveTo(-24, 32, -24, 25);
+  ctx.lineTo(-24, -7);
+  ctx.quadraticCurveTo(-24, -14, -17, -14);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // The dial IS the keyhole: a clock face seized mid-tick.
+  ctx.fillStyle = '#ffe9ec';
+  ctx.beginPath();
+  ctx.arc(0, 9, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#2a060d';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(0, 9, 15, 0, Math.PI * 2);
+  ctx.stroke();
+  // Four cardinal ticks keep the dial readable at pickup size.
+  ctx.strokeStyle = '#2a060d';
+  ctx.lineWidth = 1.4;
+  for (let h = 0; h < 4; h += 1) {
+    const angle = (h / 4) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(angle) * 10.5, 9 + Math.sin(angle) * 10.5);
+    ctx.lineTo(Math.cos(angle) * 13.5, 9 + Math.sin(angle) * 13.5);
+    ctx.stroke();
+  }
+  // Hands frozen at 4:20 — the house motif for a clock that stops working.
+  const minuteA = (120 - 90) * Math.PI / 180;
+  const hourA = (130 - 90) * Math.PI / 180;
+  ctx.strokeStyle = '#c11f31';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(0, 9);
+  ctx.lineTo(Math.cos(minuteA) * 11, 9 + Math.sin(minuteA) * 11);
+  ctx.stroke();
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, 9);
+  ctx.lineTo(Math.cos(hourA) * 7.5, 9 + Math.sin(hourA) * 7.5);
+  ctx.stroke();
+  ctx.fillStyle = '#2a060d';
+  ctx.beginPath();
+  ctx.arc(0, 9, 2, 0, Math.PI * 2);
+  ctx.fill();
+  // A crack across the glass sells "seized", not "stylish".
+  ctx.strokeStyle = 'rgba(42,6,13,0.85)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-11, 1);
+  ctx.lineTo(-4, 7);
+  ctx.lineTo(-7, 12);
+  ctx.lineTo(1, 18);
+  ctx.stroke();
+  // Danger pulse ring.
+  ctx.strokeStyle = `rgba(255,77,94,${(0.32 + pulse * 0.38).toFixed(3)})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 6, 42, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 export function drawScooterBeacon(rot: number, pulse: number, ctx: CanvasRenderingContext2D): void {
   // DNI's ride, side on: a proper Vespa-type moped — rounded rear cowl,
   // step-through frame, tall front leg-shield, handlebar and headlight.

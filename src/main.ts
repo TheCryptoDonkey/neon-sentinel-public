@@ -46,6 +46,7 @@ import {
   drawNetBeacon,
   drawScooterBeacon,
   drawShieldBeacon,
+  drawTimeLockBeacon,
   ROSE_PICKUP_URL,
   WHOLE_CAKE_PICKUP_URL,
 } from './pickup-icons.js';
@@ -115,7 +116,7 @@ type PlayerMode = 'guest' | 'nostr';
 type KillSource = 'shot' | 'burst' | 'collision';
 type EnemyShotKind = 'dart' | 'jam' | 'barrage' | 'spam';
 type RescueMode = 'catch' | 'snatch';
-type BeaconKind = 'rose' | 'cake-piece' | 'whole-cake' | '600b' | 'life' | 'shield' | 'relay' | 'charge' | 'zap' | 'net' | 'cult' | 'fourtwenty' | 'scooter' | 'multi';
+type BeaconKind = 'rose' | 'cake-piece' | 'whole-cake' | '600b' | 'life' | 'shield' | 'relay' | 'charge' | 'zap' | 'net' | 'cult' | 'fourtwenty' | 'scooter' | 'multi' | 'timelock';
 type TitleValueField = 'value-lightning' | 'value-geyser' | 'value-kofi';
 type ValueLinkId = 'lightning' | 'geyser' | 'kofi';
 type TitlePaymentAction = 'copy' | 'close';
@@ -501,6 +502,9 @@ interface GameState {
   scorePop: number;
   /** Seconds of 4:20 chill left: enemies and their shots run at half speed. */
   chill: number;
+  /** Seconds of TIME LOCKED freeze left: the ship is held in place and can't
+   * fire; aliens keep abducting but can't shoot or crash into the ship. */
+  timeLock: number;
   /** Seconds of fanout left: the laser fires three parallel beams. */
   fanout: number;
   /** Karen's don't-feed-the-donkey scold has played this run. */
@@ -774,6 +778,8 @@ const SKILLS: readonly SkillSpec[] = [
 // (rescues, wave holds, carriers, extends, TIME pickups) buys it back.
 const MAX_TIME = 120;
 const TIME_PICKUP_SECONDS = 14;
+/** How long the TIME LOCKED trap pickup freezes the ship, in seconds. */
+const TIME_LOCK_FREEZE = 2.1;
 const HIT_TIME_BASE = 6;
 
 let selectedShip: ShipClass = 'heavy';
@@ -975,7 +981,7 @@ const START_WOUNDED = QUERY.has('wounded');
 const DIRECT_CLIENT_SCORE = QUERY.has('directScore');
 const DEBUG_EXPLOSION = QUERY.has('explode');
 const DEBUG_FXLAB = QUERY.has('fxlab');
-type FxLabKey = 'shoot' | 'pickup' | 'pickup-big' | 'pickup-rose' | 'pickup-cult' | 'pickup-420' | 'pickup-scooter' | 'pickup-600b' | 'pickup-multi' | 'troll-feed' | 'troll-feed-2' | 'troll-feed-3' | 'kill-hunter' | 'kill-carrier';
+type FxLabKey = 'shoot' | 'pickup' | 'pickup-big' | 'pickup-rose' | 'pickup-cult' | 'pickup-420' | 'pickup-scooter' | 'pickup-600b' | 'pickup-multi' | 'pickup-timelock' | 'troll-feed' | 'troll-feed-2' | 'troll-feed-3' | 'kill-hunter' | 'kill-carrier';
 const DEBUG_GAMEOVER = QUERY.has('gameover');
 const DEBUG_AUTO_SUPPORT = QUERY.has('support');
 const DEBUG_COMBAT = QUERY.has('combat');
@@ -1219,6 +1225,7 @@ function makeState(seed = Date.now() >>> 0): GameState {
     scoreSurge: 0,
     scorePop: 0,
     chill: 0,
+    timeLock: 0,
     fanout: 0,
     trollScolded: false,
     trollSpotted: false,
@@ -2115,6 +2122,15 @@ function seedDebugCombatScene(): void {
     kind: 'multi',
     spriteIndex: 0,
   });
+  state.beacons.push({
+    x: wrapX(state.ship.x + 360),
+    y: state.ship.y - 250,
+    ttl: 60,
+    age: 0,
+    value: 2,
+    kind: 'timelock',
+    spriteIndex: 0,
+  });
   spawnDetailedExplosion(wrapX(state.ship.x + 530), state.ship.y - 18, ['#ff8a3a', '#ffd84a', '#fff5d8', '#5effdb'], 0.82, -80, 24);
   state.message = 'COMBAT VISUAL TEST';
   state.messageUntil = 1.2;
@@ -2136,6 +2152,7 @@ const FX_LAB_SEQUENCE: ReadonlyArray<{ key: FxLabKey; label: string }> = [
   { key: 'pickup-scooter', label: 'DNI SCOOTER (600B)' },
   { key: 'pickup-600b', label: '600B MEDALLION BARK' },
   { key: 'pickup-multi', label: 'FANOUT PICKUP' },
+  { key: 'pickup-timelock', label: 'TIME LOCKED TRAP' },
   { key: 'troll-feed', label: 'TROLL FEED (DONKEY)' },
   { key: 'troll-feed-2', label: 'TROLL FEED (2ND WARNING)' },
   { key: 'troll-feed-3', label: 'TROLL FEED (3RD+ WARNING)' },
@@ -2212,6 +2229,12 @@ function fxLabFireSide(key: FxLabKey): void {
     spawnPickupFx(x, y, '#ffb03a', false);
     spawnText(x, y - 46, 'FANOUT x3', '#ffb03a');
     playAudio('pickupMulti', 1.5);
+  } else if (key === 'pickup-timelock') {
+    spawnPickupFx(x, y, '#ff4d5e', false);
+    spawnShockwave(x, y, '#ff4d5e', 96, 0.26);
+    playAudio('pickupTimeLock', 1.5);
+    playVoiceClip(TIMELOCK_VOICE_URL, 1.15);
+    spawnVoiceLine(x, y - 46, 'TIME LOCKED!', '#ff4d5e');
   } else if (key === 'troll-feed') {
     spawnBurst(x, y, enemyColour('troll'), 8, 90);
     playAudio('trollFeed', 1.1);
@@ -2274,6 +2297,7 @@ function fxLabFire(key: FxLabKey): void {
   if (key === 'pickup-cult') preloadVoiceClip(CULT_VOICE_URL);
   if (key === 'pickup-420') preloadVoiceClip(FOURTWENTY_VOICE_URL);
   if (key === 'pickup-scooter') preloadVoiceClip(SCOOTER_ACCIDENT_VOICE_URL);
+  if (key === 'pickup-timelock') preloadVoiceClip(TIMELOCK_VOICE_URL);
   if (key === 'pickup-600b') for (const line of SIX_HUNDRED_B_VOICE_LINES) preloadVoiceClip(line.url);
   if (key === 'troll-feed') preloadVoiceClip(TROLL_FEED_VOICE_URL);
   if (key === 'troll-feed-2') preloadVoiceClip(TROLL_FEED_VOICE_URL_2);
@@ -2641,6 +2665,10 @@ function update(dt: number): void {
     state.scorePop = Math.min(1, Math.max(state.scorePop, 0.34 + Math.min(0.62, Math.log10(scoreDelta / 300) * 0.55)));
   }
   state.chill = Math.max(0, state.chill - simDt);
+  state.timeLock = Math.max(0, state.timeLock - simDt);
+  if (state.timeLock > 0 && rand() < simDt * 7) {
+    spawnRing(state.ship.x, state.ship.y, '#ff4d5e', 44 + rand() * 26);
+  }
   state.fanout = Math.max(0, state.fanout - simDt);
   state.rescueNet = Math.max(0, state.rescueNet - simDt);
   if (state.rescueNet > 0 && rand() < simDt * 6) {
@@ -2685,6 +2713,17 @@ function updateGameOverEffects(dt: number): void {
 
 function updateShip(dt: number): void {
   const ship = state.ship;
+  if (state.timeLock > 0) {
+    // TIME LOCKED: the ship is frozen solid — no input, no thrust, no fire.
+    // Timers still tick so the lock never extends any other cooldown.
+    ship.vx = 0;
+    ship.vy = 0;
+    ship.cooldown = Math.max(0, ship.cooldown - dt);
+    ship.invuln = Math.max(0, ship.invuln - dt);
+    ship.turnCue = Math.max(0, ship.turnCue - dt * 4.6);
+    ship.heat = Math.max(0, ship.heat - dt * 1.82);
+    return;
+  }
   const spec = shipSpec(state.shipClass);
   const tuning = getTuning();
   const viewport = visibleCanvasRect();
@@ -3904,6 +3943,10 @@ function updateBeacons(dt: number): void {
         playVoiceClip(MULTI_VOICE_URL, 1.15);
         spawnVoiceLine(b.x, b.y - 78, 'FANOUT ONLINE!', beaconColour(b.kind));
       }
+      if (b.kind === 'timelock') {
+        playVoiceClip(TIMELOCK_VOICE_URL, 1.15);
+        spawnVoiceLine(b.x, b.y - 78, 'TIME LOCKED!', beaconColour(b.kind));
+      }
     }
   }
   state.beacons = state.beacons.filter(b => b.ttl > 0);
@@ -4010,6 +4053,20 @@ function applyBeaconEffect(b: Beacon): void {
     state.message = "It's 4:20 Somewhere";
     spawnText(b.x, b.y - 48, 'EVERYTHING CHILLS', '#8cff5a');
     spawnRing(state.ship.x, state.ship.y, '#8cff5a', 112);
+    return;
+  }
+  if (b.kind === 'timelock') {
+    // The trap pickup: the clock seizes and so does the ship. Frozen for
+    // 2.100 seconds while the abductors keep working — but the aliens don't
+    // get free shots at a ship that can't dodge (see shipProtected).
+    state.timeLock = TIME_LOCK_FREEZE;
+    state.ship.vx = 0;
+    state.ship.vy = 0;
+    state.message = 'TIME LOCKED';
+    spawnText(b.x, b.y - 48, 'SHIP FROZEN', '#ff4d5e');
+    spawnRing(state.ship.x, state.ship.y, '#ff4d5e', 118);
+    spawnShockwave(state.ship.x, state.ship.y, '#ff4d5e', 96, 0.26);
+    state.shake = Math.max(state.shake, 0.3);
     return;
   }
   if (b.kind === 'zap') {
@@ -5508,6 +5565,7 @@ function spawnBeacon(value: number, forcedKind?: BeaconKind): void {
   if (kind === 'zap') preloadVoiceClip(ZAP_VOICE_URL);
   if (kind === 'net') preloadVoiceClip(NET_VOICE_URL);
   if (kind === 'multi') preloadVoiceClip(MULTI_VOICE_URL);
+  if (kind === 'timelock') preloadVoiceClip(TIMELOCK_VOICE_URL);
   spawnRing(x, y, beaconColour(kind), kind === 'life' ? 92 : 78);
   playAudio('pickup', 0.55);
 }
@@ -5558,6 +5616,8 @@ const CHARGE_VOICE_URL = '/sfx/charge-ready.m4a';
 const ZAP_VOICE_URL = '/sfx/zap-double-score.m4a';
 const NET_VOICE_URL = '/sfx/net-active.m4a';
 const MULTI_VOICE_URL = '/sfx/fanout-online.m4a';
+// The trap pickup's cold system-voice verdict.
+const TIMELOCK_VOICE_URL = '/sfx/time-locked.m4a';
 // The rescued frens thank you — a small rotating cast in varied voices, so
 // different saves sound like different members of the roll. Only the dramatic
 // clutch/snatch catches trigger it, and a hard cooldown keeps gratitude a warm
@@ -5598,6 +5658,7 @@ function beaconPickupTone(kind: BeaconKind): Parameters<typeof playAudio>[0] {
   if (kind === 'fourtwenty') return 'pickupFourTwenty';
   if (kind === 'scooter') return 'pickupScooter';
   if (kind === 'multi') return 'pickupMulti';
+  if (kind === 'timelock') return 'pickupTimeLock';
   return 'pickupArcade';
 }
 
@@ -5609,6 +5670,9 @@ function chooseBeaconKind(value: number): BeaconKind {
     if (universalRoll < 0.17) return 'net';
     if (universalRoll < 0.225) return 'fourtwenty';
     if (universalRoll < 0.285) return 'multi';
+    // The trap in the goody bag: same shelf as the best drops, so a greedy
+    // grab sometimes seizes the clock instead.
+    if (universalRoll < 0.33) return 'timelock';
   }
   if (state.skill !== '600b') {
     if (value >= 3) return 'charge';
@@ -5892,6 +5956,7 @@ function makeDebugFrame() {
     wave: state.wave,
     timeLeft: state.timeLeft,
     timePop: state.timePop,
+    timeLock: state.timeLock,
     waveTimer: state.waveTimer,
     waveGrace: state.waveGrace,
     hitstop: state.hitstop,
@@ -8615,6 +8680,8 @@ function drawBeacon(b: Beacon, t: number): void {
     drawCultBeacon(rot, pulse, ctx);
   } else if (b.kind === 'fourtwenty') {
     drawFourTwentyBeacon(rot, pulse, ctx);
+  } else if (b.kind === 'timelock') {
+    drawTimeLockBeacon(rot, pulse, ctx);
   } else if (b.kind === 'scooter') {
     drawScooterBeacon(rot, pulse, ctx);
   } else if (b.kind === 'multi') {
@@ -8664,10 +8731,12 @@ function beaconColour(kind: BeaconKind): string {
   if (kind === 'fourtwenty') return '#8cff5a';
   if (kind === 'scooter') return '#7dcfff';
   if (kind === 'multi') return '#ffb03a';
+  if (kind === 'timelock') return '#ff4d5e';
   return '#ffd84a';
 }
 
 function beaconRingColour(kind: BeaconKind): string {
+  if (kind === 'timelock') return '#ff9aa4';
   if (kind === 'cult') return '#e2c8ff';
   if (kind === 'fourtwenty') return '#c9ffb2';
   if (kind === 'scooter') return '#c3e9ff';
@@ -8682,6 +8751,7 @@ function beaconRingColour(kind: BeaconKind): string {
 }
 
 function beaconLabel(kind: BeaconKind): string {
+  if (kind === 'timelock') return 'TIME LOCK';
   if (kind === 'cult') return 'NOT A CULT';
   if (kind === 'fourtwenty') return '4:20';
   if (kind === 'scooter') return 'DNI SCOOTER';
@@ -10638,6 +10708,24 @@ function drawMessages(t: number, meshMode: boolean): void {
     return;
   }
   if (state.phase === 'playing') drawControlHints(viewport);
+  if (state.phase === 'playing' && state.timeLock > 0) {
+    // TIME LOCKED trap: the headline plus a live millisecond countdown from
+    // 2.100 — the player should feel every thousandth they can't move.
+    const portrait = usePortraitHud(viewport);
+    const shiver = Math.sin(t * 42) * 1.4;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#ff4d5e';
+    ctx.shadowBlur = portrait ? 12 : 18;
+    ctx.fillStyle = '#fff5d8';
+    ctx.font = `900 ${portrait ? 26 : 42}px ${FONT_DISPLAY}`;
+    ctx.fillText('TIME LOCKED', cx + shiver, PLAY_TOP + (portrait ? 84 : 108));
+    ctx.fillStyle = '#ff4d5e';
+    ctx.font = `900 ${portrait ? 22 : 34}px ${FONT_MONO}`;
+    ctx.fillText(state.timeLock.toFixed(3), cx, PLAY_TOP + (portrait ? 116 : 152));
+    ctx.restore();
+    return;
+  }
   if (state.messageUntil > 0) {
     ctx.save();
     ctx.textAlign = 'center';
@@ -13572,7 +13660,9 @@ function contactThreatEtaText(s: Signal, threat = contactThreat(s)): string {
 }
 
 function shipProtected(): boolean {
-  return state.ship.invuln > 0 || state.waveGrace > 0;
+  // A TIME LOCKED ship can't dodge, so the aliens don't get to shoot it or
+  // crash into it either — the lock costs clock and abduction ground, not hits.
+  return state.ship.invuln > 0 || state.waveGrace > 0 || state.timeLock > 0;
 }
 
 function signalDisplayName(s: Signal): string {
