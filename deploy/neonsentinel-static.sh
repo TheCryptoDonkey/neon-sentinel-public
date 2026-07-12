@@ -50,8 +50,20 @@ echo "[3/7] Creating isolated release directory..."
 "${SSH_CMD[@]}" "sudo mkdir -p '$REMOTE_BASE/releases/$RELEASE_ID' && sudo chown -R '$VPS_USER:$VPS_USER' '$REMOTE_BASE'"
 
 echo "[4/7] Syncing dist and API bundle..."
-rsync -az --delete -e "$RSYNC_SSH" dist/ "$VPS_USER@$VPS_HOST:$REMOTE_BASE/releases/$RELEASE_ID/"
-rsync -az --delete -e "$RSYNC_SSH" server-dist/ "$VPS_USER@$VPS_HOST:$REMOTE_BASE/releases/$RELEASE_ID/server/"
+# Hard-link unchanged files against the previous release so a deploy only
+# uploads what actually changed — the music alone is ~105MB and rarely moves.
+# --timeout aborts a dead connection instead of hanging the deploy forever.
+# ${arr[@]+...} keeps the empty-array expansion safe under set -u on bash 3.2.
+prev_release="$("${SSH_CMD[@]}" "readlink -f '$REMOTE_BASE/current'" 2>/dev/null || true)"
+dist_link=()
+server_link=()
+if [[ -n "$prev_release" && "$prev_release" != "$REMOTE_BASE/releases/$RELEASE_ID" ]]; then
+  echo "Hard-linking unchanged files against $prev_release"
+  dist_link=(--link-dest="$prev_release")
+  server_link=(--link-dest="$prev_release/server")
+fi
+rsync -az --delete --timeout=60 ${dist_link[@]+"${dist_link[@]}"} -e "$RSYNC_SSH" dist/ "$VPS_USER@$VPS_HOST:$REMOTE_BASE/releases/$RELEASE_ID/"
+rsync -az --delete --timeout=60 ${server_link[@]+"${server_link[@]}"} -e "$RSYNC_SSH" server-dist/ "$VPS_USER@$VPS_HOST:$REMOTE_BASE/releases/$RELEASE_ID/server/"
 "${SSH_CMD[@]}" "ln -sfn '$REMOTE_BASE/releases/$RELEASE_ID' '$REMOTE_BASE/current'"
 
 echo "[5/7] Claim API service..."

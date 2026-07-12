@@ -25,7 +25,10 @@ The Hetzner box already runs other games, so Neon Sentinel should deploy as a se
 - URL: `https://neonsentinel.com`.
 - Staging URL: `https://neonsentinel.playechoseven.com`.
 - Static root symlink: `/opt/neonsentinel/current`.
-- Release deployed: `/opt/neonsentinel/releases/20260705220142`.
+- Release deployed: `/opt/neonsentinel/releases/20260712085015`.
+- The claim service republishes the game key's kind-0 profile (name, about, icon, banner, website) to the write relay set on every boot, so the game account stays fresh for gamestr and other Nostr clients. `relay.gamestr.io` itself is a specialist kind-30762 relay and does not store kind 0; the profile lives on the general relays (nos.lol, damus, primal, trotters.cc).
+- Gamestr listing details (metadata, signing model, ready-to-send message) are in `docs/gamestr-listing.md`.
+- Deploys hard-link unchanged files against the previous release (`--link-dest`), so only changed files upload — the ~105MB music library no longer re-uploads every deploy. rsync runs with `--timeout=60` so a dead connection aborts instead of hanging.
 - A cache-first service worker (`/sw.js`) keeps `/music/*` and the `/api/profile-image` proxy on-device (Range requests sliced to 206s for iOS audio); the app shell stays uncached so deploys remain instant.
 - Each build bakes a build stamp into the bundle and emits `/version.json` (served `no-cache`, not edge-cached). The running app polls it — on PWA resume and every five minutes — and shows an `UPDATE READY · TAP TO RELOAD` banner on the title/game-over screens when a newer deploy exists.
 - The portrait title layout anchors to the device safe-area insets (probe elements measure `env(safe-area-inset-*)`), keeping the GUEST/NOSTR dock below the iOS status bar and the column clear of the home indicator; keyboard hints are desktop-only.
