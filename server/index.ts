@@ -137,7 +137,7 @@ async function publishGameProfile(): Promise<void> {
       content: JSON.stringify({
         name: GAME_TITLE,
         display_name: `${GAME_TITLE} 📡🔑`,
-        about: `Radar-first Nostr arcade rescue shooter — hold the relay, save the keys before the clock runs out. Scores land on gamestr as kind-30762, signed by this key. Play at ${GAME_URL}`,
+        about: `A radar-first Nostr rescue shooter with Defender-style waves, a seeded daily gauntlet, and 600B pressure. Hold the relay, save the keys, don't get TIME LOCKED. Scores land on gamestr as kind-30762, signed by this key. Play at ${GAME_URL}`,
         website: GAME_URL,
         picture: GAME_IMAGE_URL,
         banner: 'https://neonsentinel.com/brand/neon-sentinel-key-art-v2.png',

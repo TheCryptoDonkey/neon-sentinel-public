@@ -11,7 +11,7 @@ profile on every boot so the listing metadata stays fresh on the relays.
 |---|---|
 | **Name** | Neon Sentinel |
 | **Game identifier** (`game` tag) | `neonsentinel` |
-| **Description** | Radar-first Nostr arcade rescue shooter — hold the relay, save the keys before the clock runs out. Defender-style waves, a seeded daily gauntlet, and a 600B pressure mode. |
+| **Description** | A radar-first Nostr rescue shooter with Defender-style waves, a seeded daily gauntlet, and 600B pressure. Hold the relay, save the keys, don't get TIME LOCKED. |
 | **Play URL** | https://neonsentinel.com/ |
 | **Icon** (512×512) | https://neonsentinel.com/brand/icon-512.png |
 | **Banner / key art** | https://neonsentinel.com/brand/neon-sentinel-key-art-v2.png |
@@ -34,8 +34,9 @@ profile on every boot so the listing metadata stays fresh on the relays.
 > Hi — details for the Neon Sentinel listing (https://gamestr.io/neonsentinel).
 >
 > **Neon Sentinel** (game id `neonsentinel`) is a free web-based radar-first
-> arcade rescue shooter: hold the relay and save the keys before the clock
-> runs out. Play at https://neonsentinel.com/
+> Nostr rescue shooter with Defender-style waves, a seeded daily gauntlet, and
+> 600B pressure. Hold the relay, save the keys, don't get TIME LOCKED. Play at
+> https://neonsentinel.com/
 >
 > Scores are game-dev signed (kind 30762, per your spec) by
 > `npub1xuq53wm49lh820yd6sm82t5qrupfz0du0trrxzpg6y742sxyegssntwz40` — a
@@ -46,3 +47,9 @@ profile on every boot so the listing metadata stays fresh on the relays.
 > Icon: https://neonsentinel.com/brand/icon-512.png
 > Banner: https://neonsentinel.com/brand/neon-sentinel-key-art-v2.png
 > Genres: arcade, shooter, action
+>
+> PS — small fix for the Hang On, Fren listing while you're in there: it says
+> "endless", but the game has a real ending (ten regions, one finish line —
+> reaching it wins the grand tour). Suggested wording: "A Riviera Vespa
+> road-tribute starring DNI — ten regions, one finish line. Grab the roses,
+> sink the beers (carefully), don't run out of road."
