@@ -27,6 +27,7 @@ import { fetchFollowerPubkeys, fetchFollowPubkeys, fetchProfiles, getCachedProfi
 import {
   buildScoreEvent,
   finaliseLocalRun,
+  GAME_ID,
   getLocalScores,
   publishSignedScore,
   submitScoreClaim,
@@ -35,6 +36,7 @@ import {
   type ScoreRunMetrics,
   type SignedNostrEvent,
 } from './scoring.js';
+import { consumeArcadeHandoff } from './arcade-handoff.js';
 import { getTuning, getTuningReadout } from './tuning.js';
 import type { MeshFrame } from './mesh-overlay.js';
 import { drawEnemySprite, drawShipSprite } from './sprite-art.js';
@@ -1671,10 +1673,12 @@ async function loadActivePlayerProfile(pubkey: string): Promise<void> {
 
 async function restoreNostrTitleSession(): Promise<void> {
   if (activePlayerSession || titleStartInFlight) return;
-  const signet = window.Signet;
-  if (!signet?.restoreSession) return;
   try {
-    const session = await signet.restoreSession({ reconnectBunker: false });
+    const arcadeSession = await consumeArcadeHandoff(GAME_ID);
+    const signet = window.Signet;
+    const session = arcadeSession ?? (signet?.restoreSession
+      ? await signet.restoreSession({ reconnectBunker: false })
+      : null);
     if (!isUsableSignetSession(session)) return;
     activePlayerSession = session;
     activePlayerProfile = getCachedProfile(session.pubkey);
