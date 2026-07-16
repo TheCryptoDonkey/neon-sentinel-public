@@ -18,7 +18,7 @@ sudoedit /etc/neonsentinel-api.env
 ```sh
 NEON_SENTINEL_GAME_NPUB=npub1xuq53wm49lh820yd6sm82t5qrupfz0du0trrxzpg6y742sxyegssntwz40
 NEON_SENTINEL_GAME_NSEC=nsec1...
-NEON_SENTINEL_WRITE_RELAYS=wss://relay.gamestr.io,wss://relay.trotters.cc,wss://nos.lol,wss://relay.damus.io,wss://relay.nostr.band,wss://relay.primal.net,wss://relay.ditto.pub
+NEON_SENTINEL_WRITE_RELAYS=wss://main.relay.gamestr.io,wss://relay.trotters.cc,wss://nos.lol,wss://relay.damus.io,wss://relay.nostr.band,wss://relay.primal.net,wss://relay.ditto.pub
 ```
 
 `NEON_SENTINEL_GAME_NSEC` may also be a 64-character hex secret. The API refuses to sign if the nsec derives to a different pubkey than `NEON_SENTINEL_GAME_NPUB`.

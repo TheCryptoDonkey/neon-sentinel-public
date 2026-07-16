@@ -13,7 +13,7 @@ const STORAGE_KEY = 'neonsentinel:read-relays:v1';
 export const PRIVATE_TEST_RELAY = 'wss://relay.trotters.cc';
 
 export const WRITE_RELAYS = [
-  'wss://relay.gamestr.io',
+  'wss://main.relay.gamestr.io',
   PRIVATE_TEST_RELAY,
   'wss://nos.lol',
   'wss://relay.damus.io',

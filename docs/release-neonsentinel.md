@@ -27,7 +27,7 @@ The Hetzner box already runs other games, so Neon Sentinel should deploy as a se
 - Static root symlink: `/opt/neonsentinel/current`.
 - Release deployed: `/opt/neonsentinel/releases/20260712094509`.
 - Canonical game description (kind 0, gamestr listing doc, and page meta tags all match): "A radar-first Nostr rescue shooter with Defender-style waves, a seeded daily gauntlet, and 600B pressure. Hold the relay, save the keys, don't get TIME LOCKED."
-- The claim service republishes the game key's kind-0 profile (name, about, icon, banner, website) to the write relay set on every boot, so the game account stays fresh for gamestr and other Nostr clients. `relay.gamestr.io` itself is a specialist kind-30762 relay and does not store kind 0; the profile lives on the general relays (nos.lol, damus, primal, trotters.cc).
+- The claim service republishes the game key's kind-0 profile (name, about, icon, banner, website) to the write relay set on every boot, so the game account stays fresh for gamestr and other Nostr clients. `main.relay.gamestr.io` itself is a specialist kind-30762 relay and does not store kind 0; the profile lives on the general relays (nos.lol, damus, primal, trotters.cc).
 - Gamestr listing details (metadata, signing model, ready-to-send message) are in `docs/gamestr-listing.md`.
 - Deploys hard-link unchanged files against the previous release (`--link-dest`), so only changed files upload — the ~105MB music library no longer re-uploads every deploy. rsync runs with `--timeout=60` so a dead connection aborts instead of hanging.
 - A cache-first service worker (`/sw.js`) keeps `/music/*` and the `/api/profile-image` proxy on-device (Range requests sliced to 206s for iOS audio); the app shell stays uncached so deploys remain instant.
@@ -40,7 +40,7 @@ The Hetzner box already runs other games, so Neon Sentinel should deploy as a se
 
 ## Relays
 
-- Write relays: `wss://relay.gamestr.io`, `wss://relay.trotters.cc`, `wss://nos.lol`, `wss://relay.damus.io`, `wss://relay.nostr.band`, `wss://relay.primal.net`, `wss://relay.ditto.pub`.
+- Write relays: `wss://main.relay.gamestr.io`, `wss://relay.trotters.cc`, `wss://nos.lol`, `wss://relay.damus.io`, `wss://relay.nostr.band`, `wss://relay.primal.net`, `wss://relay.ditto.pub`.
 - Profile/read relays: private relay plus readonly public relays from the in-game toggle list.
 - Profile-read relay toggles must never add extra game score write destinations.
 

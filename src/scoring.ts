@@ -141,7 +141,7 @@ export function buildScoreTags(summary: RelaykeepRunSummary, playerPubkey: strin
     ['lost', String(summary.lost)],
     ['credits', String(summary.sats)],
     ['max_combo', String(summary.maxCombo)],
-    // Gamestr-wide discovery tags: other games on relay.gamestr.io describe
+    // Gamestr-wide discovery tags: other games on main.relay.gamestr.io describe
     // their scores with title/level/source/platform/image, so leaderboard
     // clients can render any game's event without game-specific knowledge.
     ['title', GAME_TITLE],

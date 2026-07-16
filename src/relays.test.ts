@@ -19,6 +19,13 @@ beforeEach(() => {
   installMinimalWindow();
 });
 
+describe('production relay policy', () => {
+  it('writes directly to the Gamestr main relay, never the retired hostname', () => {
+    expect(WRITE_RELAYS).toContain('wss://main.relay.gamestr.io');
+    expect(WRITE_RELAYS).not.toContain('wss://relay.gamestr.io');
+  });
+});
+
 describe('getRelayConfigs', () => {
   it('always includes the private relay as locked, enabled read-write', () => {
     const trotters = getRelayConfigs().find(relay => relay.url === PRIVATE_TEST_RELAY);

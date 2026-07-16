@@ -76,7 +76,7 @@ if [[ "$APPLY_API" == "1" ]]; then
     sudo mkdir -p /var/lib/neonsentinel
     sudo chown -R '$VPS_USER:$VPS_USER' /var/lib/neonsentinel
     if ! sudo test -f /etc/neonsentinel-api.env; then
-      printf '# Neon Sentinel claim signer. Mode 600. Keep the nsec on this server only.\\nNEON_SENTINEL_GAME_NPUB=npub1xuq53wm49lh820yd6sm82t5qrupfz0du0trrxzpg6y742sxyegssntwz40\\nNEON_SENTINEL_GAME_NSEC=\\nNEON_SENTINEL_WRITE_RELAYS=wss://relay.gamestr.io,wss://relay.trotters.cc,wss://nos.lol,wss://relay.damus.io,wss://relay.nostr.band,wss://relay.primal.net,wss://relay.ditto.pub\\n' | sudo tee /etc/neonsentinel-api.env >/dev/null
+      printf '# Neon Sentinel claim signer. Mode 600. Keep the nsec on this server only.\\nNEON_SENTINEL_GAME_NPUB=npub1xuq53wm49lh820yd6sm82t5qrupfz0du0trrxzpg6y742sxyegssntwz40\\nNEON_SENTINEL_GAME_NSEC=\\nNEON_SENTINEL_WRITE_RELAYS=wss://main.relay.gamestr.io,wss://relay.trotters.cc,wss://nos.lol,wss://relay.damus.io,wss://relay.nostr.band,wss://relay.primal.net,wss://relay.ditto.pub\\n' | sudo tee /etc/neonsentinel-api.env >/dev/null
       sudo chmod 600 /etc/neonsentinel-api.env
     fi
     if ! sudo grep -q '^NEON_SENTINEL_GAME_NPUB=' /etc/neonsentinel-api.env; then
@@ -86,8 +86,9 @@ if [[ "$APPLY_API" == "1" ]]; then
       printf 'NEON_SENTINEL_GAME_NSEC=\\n' | sudo tee -a /etc/neonsentinel-api.env >/dev/null
     fi
     if ! sudo grep -q '^NEON_SENTINEL_WRITE_RELAYS=' /etc/neonsentinel-api.env; then
-      printf 'NEON_SENTINEL_WRITE_RELAYS=wss://relay.gamestr.io,wss://relay.trotters.cc,wss://nos.lol,wss://relay.damus.io,wss://relay.nostr.band,wss://relay.primal.net,wss://relay.ditto.pub\\n' | sudo tee -a /etc/neonsentinel-api.env >/dev/null
+      printf 'NEON_SENTINEL_WRITE_RELAYS=wss://main.relay.gamestr.io,wss://relay.trotters.cc,wss://nos.lol,wss://relay.damus.io,wss://relay.nostr.band,wss://relay.primal.net,wss://relay.ditto.pub\\n' | sudo tee -a /etc/neonsentinel-api.env >/dev/null
     fi
+    sudo sed -i 's#wss://relay\.gamestr\.io#wss://main.relay.gamestr.io#g' /etc/neonsentinel-api.env
     sudo mv '$tmp_service' /etc/systemd/system/neonsentinel-api.service
     sudo systemctl daemon-reload
     sudo systemctl enable neonsentinel-api.service >/dev/null

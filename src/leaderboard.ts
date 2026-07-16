@@ -20,7 +20,7 @@ const RELAY_FAILURE_COOLDOWN_MS = 2 * 60 * 1000;
 // just-published score has had time to land) so the rival board reflects
 // the run that just ended. A player chaining instant retries can trigger
 // several of those bypasses a minute, opening a fresh socket to every write
-// relay each time - exactly the pattern relay.gamestr.io's per-IP connection
+// relay each time - exactly the pattern main.relay.gamestr.io's per-IP connection
 // limit rejects with "too many connections from your IP". A forced fetch is
 // only honoured this often; more frequent calls fall back to the normal
 // cache like an unforced one.
@@ -254,7 +254,7 @@ export async function fetchLeaderboard(force = false): Promise<LeaderboardSnapsh
 
 function fetchFromRelays(): Promise<LeaderboardSnapshot> {
   // Scores are read back from the same relay set they are published to -
-  // that includes relay.gamestr.io (the Gamestr leaderboard relay) and the
+  // that includes main.relay.gamestr.io (the Gamestr leaderboard relay) and the
   // project relay, so the board matches what Gamestr itself sees.
   const relays = relaysForLeaderboardFetch();
   if (relays.length === 0) return Promise.resolve({ entries: [], daily: [], source: 'relays', fetchedAt: Date.now() });

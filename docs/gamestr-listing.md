@@ -1,7 +1,7 @@
 # Gamestr listing submission
 
 Everything gamestr needs for https://gamestr.io/neonsentinel, ready to send.
-Scores already publish to `wss://relay.gamestr.io` in the spec's kind-30762
+Scores already publish to `wss://main.relay.gamestr.io` in the spec's kind-30762
 shape, game-signed, and the claim service republishes the game's kind-0
 profile on every boot so the listing metadata stays fresh on the relays.
 
@@ -27,7 +27,7 @@ profile on every boot so the listing metadata stays fresh on the relays.
 | **Game dev pubkey (hex)** | `370148bb752fee753c8dd436752e801f02913dbc7ac6330828d13d5540c4ca21` |
 | **Event shape** | kind 30762, `d` = `neonsentinel:<player-pubkey>:<run-id>`, `state` = `final`, player attributed via `p` tag; daily-gauntlet runs carry a `daily-YYYYMMDD-` run-id prefix |
 | **Kind 0** | Published by the game key (name, about, picture, banner, website) — republished on every claim-service boot |
-| **Relays published to** | relay.gamestr.io, relay.trotters.cc, nos.lol, relay.damus.io, relay.nostr.band, relay.primal.net, relay.ditto.pub |
+| **Relays published to** | main.relay.gamestr.io, relay.trotters.cc, nos.lol, relay.damus.io, relay.nostr.band, relay.primal.net, relay.ditto.pub |
 
 ## Ready-to-send message
 

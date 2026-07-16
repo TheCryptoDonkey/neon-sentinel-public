@@ -24,7 +24,7 @@ const GAME_URL = 'https://neonsentinel.com/';
 const GAME_SOURCE = 'neonsentinel.com';
 const GAME_IMAGE_URL = 'https://neonsentinel.com/brand/icon-512.png';
 const DEFAULT_WRITE_RELAYS = [
-  'wss://relay.gamestr.io',
+  'wss://main.relay.gamestr.io',
   'wss://relay.trotters.cc',
   'wss://nos.lol',
   'wss://relay.damus.io',
@@ -731,7 +731,7 @@ function buildScoreEvent(claim: ClaimInput, playerPubkey: string, payoutSats: nu
     ['lost', String(claim.lost)],
     ['credits', String(claim.credits)],
     ['max_combo', String(claim.max_combo)],
-    // Gamestr-wide discovery tags: other games on relay.gamestr.io describe
+    // Gamestr-wide discovery tags: other games on main.relay.gamestr.io describe
     // their scores with title/level/source/platform/image, so leaderboard
     // clients can render any game's event without game-specific knowledge.
     ['title', GAME_TITLE],

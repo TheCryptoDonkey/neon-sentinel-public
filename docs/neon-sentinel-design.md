@@ -79,7 +79,7 @@ The player authenticates the claim with NIP-98. The server validates the payload
 
 Relay policy:
 
-- Score writes use the Pallasite-compatible gamestr fan-out: `wss://relay.gamestr.io`, `wss://relay.trotters.cc`, `wss://nos.lol`, `wss://relay.damus.io`, `wss://relay.nostr.band`, `wss://relay.primal.net`, and `wss://relay.ditto.pub`.
+- Score writes use the Pallasite-compatible gamestr fan-out: `wss://main.relay.gamestr.io`, `wss://relay.trotters.cc`, `wss://nos.lol`, `wss://relay.damus.io`, `wss://relay.nostr.band`, `wss://relay.primal.net`, and `wss://relay.ditto.pub`.
 - Public Pallasite/profile relays remain toggleable read sources for kind 0, follows, and related metadata.
 - Profile relay toggles must never add extra Neon Sentinel `kind 30762` write destinations.
 

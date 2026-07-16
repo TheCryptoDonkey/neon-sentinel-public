@@ -135,7 +135,7 @@ path: neon-sentinel@0
 
 Relay policy:
 
-- write: Pallasite-compatible gamestr fan-out: `wss://relay.gamestr.io`, `wss://relay.trotters.cc`, `wss://nos.lol`, `wss://relay.damus.io`, `wss://relay.nostr.band`, `wss://relay.primal.net`, `wss://relay.ditto.pub`
+- write: Pallasite-compatible gamestr fan-out: `wss://main.relay.gamestr.io`, `wss://relay.trotters.cc`, `wss://nos.lol`, `wss://relay.damus.io`, `wss://relay.nostr.band`, `wss://relay.primal.net`, `wss://relay.ditto.pub`
 - read: public Pallasite/nostr profile relays, toggleable, read-only
 - public score fan-out is limited to the configured write relay set; profile/WoT relay toggles do not add extra score-write destinations
 
