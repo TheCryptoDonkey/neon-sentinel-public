@@ -5,11 +5,13 @@ export interface ValueForValueConfig {
   qrValue: string;
   href: string;
   display: string;
+  onchainAddress: string;
+  silentPayment: string;
   links: ValueForValueLink[];
 }
 
 export interface ValueForValueLink {
-  id: 'lightning' | 'geyser' | 'kofi';
+  id: 'lightning' | 'onchain' | 'silent' | 'geyser' | 'kofi';
   label: string;
   href: string;
   display: string;
@@ -18,6 +20,8 @@ export interface ValueForValueLink {
 declare global {
   interface Window {
     neonSentinelValueUri?: string;
+    neonSentinelOnchainAddress?: string;
+    neonSentinelSilentPayment?: string;
     neonSentinelGeyserUrl?: string;
     neonSentinelKofiUrl?: string;
   }
@@ -26,6 +30,12 @@ declare global {
 const META_NAME = 'neon-sentinel:value-uri';
 const ENV_KEY = 'VITE_NEON_SENTINEL_VALUE_URI';
 const QUERY_KEY = 'valueUri';
+const ONCHAIN_META_NAME = 'neon-sentinel:onchain-address';
+const ONCHAIN_ENV_KEY = 'VITE_NEON_SENTINEL_ONCHAIN_ADDRESS';
+const ONCHAIN_QUERY_KEY = 'onchainAddress';
+const SILENT_META_NAME = 'neon-sentinel:silent-payment';
+const SILENT_ENV_KEY = 'VITE_NEON_SENTINEL_SILENT_PAYMENT';
+const SILENT_QUERY_KEY = 'silentPayment';
 const GEYSER_META_NAME = 'neon-sentinel:geyser-url';
 const GEYSER_ENV_KEY = 'VITE_NEON_SENTINEL_GEYSER_URL';
 const GEYSER_QUERY_KEY = 'geyserUrl';
@@ -33,13 +43,15 @@ const KOFI_META_NAME = 'neon-sentinel:kofi-url';
 const KOFI_ENV_KEY = 'VITE_NEON_SENTINEL_KOFI_URL';
 const KOFI_QUERY_KEY = 'kofiUrl';
 const DEFAULT_LIGHTNING_ADDRESS = 'profusemeat89@walletofsatoshi.com';
+const DEFAULT_ONCHAIN_ADDRESS = 'bc1qc75tj6gs06r0hjwy8z6tdkg92tm39wnzwj4lah';
+const DEFAULT_SILENT_PAYMENT = 'sp1qq0s22v57t06499r29yfnwsf408uqzneufpzvy4ennd8dedfwdm08qqes6lwp8uzapmf2x2dhpsfcrhh6j70grs5dfyx7235ae6yl0jr3tcqfym4g';
 const DEFAULT_GEYSER_URL = 'https://geyser.fund/project/forgesworn?hero=geyserannually1';
 const DEFAULT_KOFI_URL = 'https://ko-fi.com/brays';
 const QR_PIXELS = 228;
 const QR_MARGIN = 4;
 
 let cachedConfig: ValueForValueConfig | null = null;
-let cachedQr: { value: string; canvas: HTMLCanvasElement } | null = null;
+const cachedQrs = new Map<string, HTMLCanvasElement>();
 
 export function getValueForValueConfig(): ValueForValueConfig {
   if (cachedConfig) return cachedConfig;
@@ -52,6 +64,20 @@ export function getValueForValueConfig(): ValueForValueConfig {
     env?.[ENV_KEY],
     DEFAULT_LIGHTNING_ADDRESS,
   ]);
+  const onchain = normaliseOnchainAddress(firstNonEmpty([
+    query.get(ONCHAIN_QUERY_KEY),
+    window.neonSentinelOnchainAddress,
+    document.querySelector<HTMLMetaElement>(`meta[name="${ONCHAIN_META_NAME}"]`)?.content,
+    env?.[ONCHAIN_ENV_KEY],
+    DEFAULT_ONCHAIN_ADDRESS,
+  ]));
+  const silent = normaliseSilentPayment(firstNonEmpty([
+    query.get(SILENT_QUERY_KEY),
+    window.neonSentinelSilentPayment,
+    document.querySelector<HTMLMetaElement>(`meta[name="${SILENT_META_NAME}"]`)?.content,
+    env?.[SILENT_ENV_KEY],
+    DEFAULT_SILENT_PAYMENT,
+  ]));
   const geyser = firstNonEmpty([
     query.get(GEYSER_QUERY_KEY),
     window.neonSentinelGeyserUrl,
@@ -67,12 +93,14 @@ export function getValueForValueConfig(): ValueForValueConfig {
     DEFAULT_KOFI_URL,
   ]);
   const qrValue = target ? normalisePaymentTarget(target) : '';
-  const links = buildSupportLinks(qrValue, geyser, kofi);
+  const links = buildSupportLinks(qrValue, onchain, silent, geyser, kofi);
   cachedConfig = {
     configured: qrValue.length > 0,
     qrValue,
     href: qrValue,
     display: qrValue ? displayPaymentTarget(qrValue) : '',
+    onchainAddress: onchain,
+    silentPayment: silent,
     links,
   };
   return cachedConfig;
@@ -80,7 +108,8 @@ export function getValueForValueConfig(): ValueForValueConfig {
 
 export function getValueForValueQrCanvas(qrValue: string): HTMLCanvasElement | null {
   if (!qrValue) return null;
-  if (cachedQr?.value === qrValue) return cachedQr.canvas;
+  const cached = cachedQrs.get(qrValue);
+  if (cached) return cached;
 
   const qr = qrcode(0, 'M');
   qr.addData(qrValue, 'Byte');
@@ -105,7 +134,7 @@ export function getValueForValueQrCanvas(qrValue: string): HTMLCanvasElement | n
     }
   }
 
-  cachedQr = { value: qrValue, canvas };
+  cachedQrs.set(qrValue, canvas);
   return canvas;
 }
 
@@ -132,7 +161,20 @@ function displayPaymentTarget(qrValue: string): string {
   return `${clean.slice(0, 18)}...${clean.slice(-12)}`;
 }
 
-function buildSupportLinks(qrValue: string, geyser: string, kofi: string): ValueForValueLink[] {
+// Loose shape checks only — these gate what we RENDER, not what we pay. A
+// wrong-but-plausible address still renders; the checksum lives with the
+// sender's wallet.
+function normaliseOnchainAddress(value: string): string {
+  const clean = value.trim().replace(/^bitcoin:/i, '');
+  return /^(bc1[a-z0-9]{11,87}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(clean) ? clean : '';
+}
+
+function normaliseSilentPayment(value: string): string {
+  const clean = value.trim();
+  return /^sp1[a-z0-9]{50,}$/.test(clean) ? clean : '';
+}
+
+function buildSupportLinks(qrValue: string, onchain: string, silent: string, geyser: string, kofi: string): ValueForValueLink[] {
   const links: ValueForValueLink[] = [];
   if (qrValue) {
     links.push({
@@ -140,6 +182,23 @@ function buildSupportLinks(qrValue: string, geyser: string, kofi: string): Value
       label: 'PAY SATS',
       href: qrValue,
       display: displayPaymentTarget(qrValue),
+    });
+  }
+  if (onchain) {
+    links.push({
+      id: 'onchain',
+      label: 'BTC',
+      href: `bitcoin:${onchain}`,
+      display: displayPaymentTarget(onchain),
+    });
+  }
+  if (silent) {
+    // No URI scheme — silent payment codes are copied or scanned raw.
+    links.push({
+      id: 'silent',
+      label: 'SILENT',
+      href: silent,
+      display: displayPaymentTarget(silent),
     });
   }
   if (isHttpUrl(geyser)) {

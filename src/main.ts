@@ -119,8 +119,11 @@ type KillSource = 'shot' | 'burst' | 'collision';
 type EnemyShotKind = 'dart' | 'jam' | 'barrage' | 'spam';
 type RescueMode = 'catch' | 'snatch';
 type BeaconKind = 'rose' | 'cake-piece' | 'whole-cake' | '600b' | 'life' | 'shield' | 'relay' | 'charge' | 'zap' | 'net' | 'cult' | 'fourtwenty' | 'scooter' | 'multi' | 'timelock';
-type TitleValueField = 'value-lightning' | 'value-geyser' | 'value-kofi';
-type ValueLinkId = 'lightning' | 'geyser' | 'kofi';
+type TitleValueField = 'value-lightning' | 'value-onchain' | 'value-silent' | 'value-geyser' | 'value-kofi';
+type ValueLinkId = 'lightning' | 'onchain' | 'silent' | 'geyser' | 'kofi';
+// The three methods that carry their own QR + copyable address (as opposed
+// to Geyser/Ko-fi, which just open a browser tab).
+type SupportQrMethod = 'lightning' | 'onchain' | 'silent';
 type TitlePaymentAction = 'copy' | 'close';
 type TitleMenuField = 'ship' | 'pressure' | 'guest' | 'login' | 'logout' | 'start' | 'daily' | TitleValueField;
 type TitleMenuAction =
@@ -997,6 +1000,9 @@ let titleStatus = guestTitleStatus();
 let titleValueStatus = '';
 let titlePaymentModalOpen = false;
 let titlePaymentAction: TitlePaymentAction = 'copy';
+// Which QR the title payment modal and game-over support panel show.
+let titlePaymentMethod: SupportQrMethod = 'lightning';
+let scoreSupportMethod: SupportQrMethod = 'lightning';
 let titleStartProgress = 0;
 let titleStartDisplayProgress = 0;
 let titleStartStartedAt = 0;
@@ -10859,7 +10865,9 @@ function canvasPointFromPointer(ev: PointerEvent): { x: number; y: number } | nu
 
 function drawValueForValuePanel(cx: number, portrait: boolean, viewport: VisibleCanvasRect, panelY: number): number {
   if (!VALUE_FOR_VALUE.configured) return 0;
-  const qr = getValueForValueQrCanvas(VALUE_FOR_VALUE.qrValue);
+  const method = activeSupportMethod(scoreSupportMethod);
+  if (!method) return 0;
+  const qr = getValueForValueQrCanvas(method.qrValue);
   if (!qr) return 0;
 
   const panelW = portrait ? Math.min(354, Math.max(286, viewport.w - 18)) : Math.min(900, viewport.w - 76);
@@ -10940,7 +10948,7 @@ function drawValueForValuePanel(cx: number, portrait: boolean, viewport: Visible
 
     ctx.fillStyle = 'rgba(94,255,219,0.82)';
     ctx.font = `900 ${portrait ? 7 : 10}px ${FONT_MONO}`;
-    const targetLines = splitPaymentDisplay(VALUE_FOR_VALUE.display, Math.max(10, Math.floor(textW / (portrait ? 5.6 : 6.6))));
+    const targetLines = splitPaymentDisplay(method.display, Math.max(10, Math.floor(textW / (portrait ? 5.6 : 6.6))));
     const startY = portrait ? y + panelH - 80 : methodY + 28;
     for (let i = 0; i < Math.min(portrait ? 1 : 2, targetLines.length); i += 1) {
       if (portrait) {
@@ -10973,9 +10981,14 @@ function drawValueForValuePanel(cx: number, portrait: boolean, viewport: Visible
   return y + panelH;
 }
 
+// Single source of truth for the game-over support row — valueMethodButtons
+// (hit-testing) and drawValueMethodGroup (labels) must agree on order.
+const SCORE_VALUE_METHOD_IDS: readonly ValueLinkId[] = ['lightning', 'onchain', 'silent', 'geyser', 'kofi'];
+
 function drawValueMethodGroup(cx: number, y: number, w: number, portrait: boolean): void {
   const h = portrait ? 25 : 34;
-  const labels = ['SATS', 'GEYSER', 'KO-FI'];
+  const ids = SCORE_VALUE_METHOD_IDS.filter(id => VALUE_FOR_VALUE.links.some(link => link.id === id));
+  const labels = ids.map(id => titleValueLinkLabel(id));
   const x = cx - w / 2;
   const segmentW = w / labels.length;
   ctx.save();
@@ -11002,6 +11015,11 @@ function drawValueMethodGroup(cx: number, y: number, w: number, portrait: boolea
       ctx.stroke();
       ctx.shadowBlur = portrait ? 5 : 9;
     }
+    // The QR-carrying method currently on display reads teal, matching the
+    // active-state accent used across the title menu.
+    const selected = ids[i] === scoreSupportMethod;
+    ctx.fillStyle = selected ? '#5effdb' : '#ffd84a';
+    ctx.shadowColor = selected ? '#5effdb' : '#ffd84a';
     fitCanvasText(labels[i]!, x + segmentW * (i + 0.5), y + 1, segmentW - 12);
   }
   ctx.restore();
@@ -11027,7 +11045,7 @@ function valueMethodButtons(viewport: VisibleCanvasRect = visibleCanvasRect()): 
   const groupH = portrait ? 25 : 34;
   const groupCx = portrait ? panelX + panelW / 2 : textX + textW / 2;
   const groupX = groupCx - groupW / 2;
-  const ids: ValueLinkId[] = ['lightning', 'geyser', 'kofi'];
+  const ids = SCORE_VALUE_METHOD_IDS.filter(id => VALUE_FOR_VALUE.links.some(link => link.id === id));
   const segmentW = groupW / ids.length;
   return ids.map((id, index) => ({
     id,
@@ -11495,12 +11513,16 @@ function titleValueButtons(panel: { x: number; y: number; w: number; h: number }
 
 function valueActionForLink(id: ValueLinkId): TitleValueField {
   if (id === 'lightning') return 'value-lightning';
+  if (id === 'onchain') return 'value-onchain';
+  if (id === 'silent') return 'value-silent';
   if (id === 'geyser') return 'value-geyser';
   return 'value-kofi';
 }
 
-function titleValueLinkLabel(id: 'lightning' | 'geyser' | 'kofi'): string {
+function titleValueLinkLabel(id: ValueLinkId): string {
   if (id === 'lightning') return 'SATS';
+  if (id === 'onchain') return 'BTC';
+  if (id === 'silent') return 'SILENT';
   if (id === 'geyser') return 'GEYSER';
   return 'KO-FI';
 }
@@ -11784,6 +11806,8 @@ function drawTitleValuePanel(panel: { x: number; y: number; w: number; h: number
 function titleValuePanelLine(compact: boolean): string {
   if (titleValueStatus) return titleValueStatus;
   if (titleMenuField === 'value-lightning') return compact ? 'ENTER SHOWS SATS QR' : 'ENTER SHOWS QR + LIGHTNING ADDRESS';
+  if (titleMenuField === 'value-onchain') return compact ? 'ENTER SHOWS BTC QR' : 'ENTER SHOWS QR + BITCOIN ADDRESS';
+  if (titleMenuField === 'value-silent') return compact ? 'ENTER SHOWS SILENT QR' : 'ENTER SHOWS QR + SILENT PAYMENT CODE';
   if (titleMenuField === 'value-geyser') return 'ENTER OPENS GEYSER · COPIES LINK';
   if (titleMenuField === 'value-kofi') return 'ENTER OPENS KO-FI · COPIES LINK';
   return compact ? 'GOT VALUE? GIVE BACK.' : 'PLAY FREE. IF THIS GIVES VALUE, GIVE BACK.';
@@ -11864,8 +11888,9 @@ function titlePaymentModalLayout(viewport: VisibleCanvasRect = visibleCanvasRect
 }
 
 function drawTitlePaymentModal(viewport: VisibleCanvasRect, t: number): void {
-  const qr = getValueForValueQrCanvas(VALUE_FOR_VALUE.qrValue);
-  if (!VALUE_FOR_VALUE.configured || !qr) return;
+  const method = activeSupportMethod(titlePaymentMethod);
+  const qr = method ? getValueForValueQrCanvas(method.qrValue) : null;
+  if (!VALUE_FOR_VALUE.configured || !method || !qr) return;
   const layout = titlePaymentModalLayout(viewport);
   const { panel, portrait } = layout;
   const pulse = 0.5 + Math.sin(t * 4.6) * 0.5;
@@ -11895,7 +11920,7 @@ function drawTitlePaymentModal(viewport: VisibleCanvasRect, t: number): void {
   ctx.shadowBlur = 0;
   ctx.fillStyle = 'rgba(255,245,216,0.84)';
   ctx.font = `900 ${portrait ? 7.2 : 10}px ${FONT_MONO}`;
-  fitCanvasText('SCAN THE QR OR COPY THE LIGHTNING ADDRESS', panel.x + panel.w / 2, panel.y + (portrait ? 62 : 78), panel.w - 40);
+  fitCanvasText(`SCAN THE QR OR COPY THE ${method.addressLabel}`, panel.x + panel.w / 2, panel.y + (portrait ? 62 : 78), panel.w - 40);
 
   ctx.drawImage(qr, layout.qr.x, layout.qr.y, layout.qr.size, layout.qr.size);
   ctx.strokeStyle = 'rgba(255,245,216,0.58)';
@@ -11906,10 +11931,10 @@ function drawTitlePaymentModal(viewport: VisibleCanvasRect, t: number): void {
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#5effdb';
   ctx.font = `950 ${portrait ? 9 : 13}px ${FONT_DISPLAY}`;
-  fitCanvasText('LIGHTNING ADDRESS', portrait ? panel.x + panel.w / 2 : layout.textX, layout.textY, layout.textW);
+  fitCanvasText(method.addressLabel, portrait ? panel.x + panel.w / 2 : layout.textX, layout.textY, layout.textW);
   ctx.fillStyle = 'rgba(255,245,216,0.94)';
   ctx.font = `900 ${portrait ? 9 : 13}px ${FONT_MONO}`;
-  const addressLines = splitPaymentDisplay(VALUE_FOR_VALUE.display, Math.max(12, Math.floor(layout.textW / (portrait ? 6.2 : 7.2))));
+  const addressLines = splitPaymentDisplay(method.display, Math.max(12, Math.floor(layout.textW / (portrait ? 6.2 : 7.2))));
   for (let i = 0; i < Math.min(3, addressLines.length); i += 1) {
     fitCanvasText(addressLines[i]!, portrait ? panel.x + panel.w / 2 : layout.textX, layout.textY + (portrait ? 23 : 30) + i * (portrait ? 13 : 18), layout.textW);
   }
@@ -12225,7 +12250,7 @@ function handleTitlePaymentPointerAction(x: number, y: number): boolean {
   const action = titlePaymentActionAt(x, y);
   if (action === 'copy') {
     titlePaymentAction = 'copy';
-    copyLightningPaymentTarget();
+    copyTitlePaymentTarget();
   } else if (action === 'close' || action === 'outside') {
     closeTitlePaymentModal();
   }
@@ -12299,12 +12324,15 @@ async function startSelectedRunFromTitle(): Promise<void> {
 }
 
 function activateTitleValueLink(action: TitleValueField): void {
-  const id = action === 'value-lightning' ? 'lightning' : action === 'value-geyser' ? 'geyser' : 'kofi';
+  const id: ValueLinkId = action === 'value-lightning' ? 'lightning'
+    : action === 'value-onchain' ? 'onchain'
+      : action === 'value-silent' ? 'silent'
+        : action === 'value-geyser' ? 'geyser' : 'kofi';
   const link = VALUE_FOR_VALUE.links.find(item => item.id === id);
   if (!link) return;
   playAudio('lock', 0.42);
-  if (id === 'lightning') {
-    openTitlePaymentModal();
+  if (isSupportQrMethod(id)) {
+    openTitlePaymentModal(id);
     return;
   }
   const copyText = valueCopyTextForLink(id, link.href);
@@ -12313,10 +12341,12 @@ function activateTitleValueLink(action: TitleValueField): void {
   void copyTitleValueTarget(copyText, id, opened);
 }
 
-function openTitlePaymentModal(): void {
+function openTitlePaymentModal(method: SupportQrMethod = 'lightning'): void {
+  titlePaymentMethod = method;
   titlePaymentModalOpen = true;
   titlePaymentAction = 'copy';
-  titleValueStatus = 'SCAN QR · COPY LIGHTNING ADDRESS';
+  const details = supportMethodDetails(method);
+  titleValueStatus = `SCAN QR · COPY ${details?.addressLabel ?? 'ADDRESS'}`;
   titleStatus = titleValueStatus;
 }
 
@@ -12328,15 +12358,59 @@ function closeTitlePaymentModal(): void {
   playAudio('lock', 0.34);
 }
 
-function copyLightningPaymentTarget(): void {
-  const link = VALUE_FOR_VALUE.links.find(item => item.id === 'lightning');
-  if (!link) return;
-  titleValueStatus = 'COPYING LIGHTNING ADDRESS';
-  void copyTitleValueTarget(valueCopyTextForLink('lightning', link.href), 'lightning');
+interface SupportMethodDetails {
+  qrValue: string;
+  display: string;
+  addressLabel: string;
+  copyText: string;
+}
+
+/** QR + copy material for the address-carrying methods. Returns null when the
+ *  method has no configured link, so callers can fall back to lightning. */
+function supportMethodDetails(method: SupportQrMethod): SupportMethodDetails | null {
+  const link = VALUE_FOR_VALUE.links.find(item => item.id === method);
+  if (!link) return null;
+  if (method === 'onchain') {
+    return {
+      qrValue: link.href,
+      display: VALUE_FOR_VALUE.onchainAddress,
+      addressLabel: 'BITCOIN ADDRESS',
+      copyText: VALUE_FOR_VALUE.onchainAddress,
+    };
+  }
+  if (method === 'silent') {
+    return {
+      qrValue: link.href,
+      display: link.display,
+      addressLabel: 'SILENT PAYMENT CODE',
+      copyText: link.href,
+    };
+  }
+  return {
+    qrValue: VALUE_FOR_VALUE.qrValue,
+    display: VALUE_FOR_VALUE.display,
+    addressLabel: 'LIGHTNING ADDRESS',
+    copyText: VALUE_FOR_VALUE.qrValue.replace(/^lightning:/i, ''),
+  };
+}
+
+function activeSupportMethod(method: SupportQrMethod): SupportMethodDetails | null {
+  return supportMethodDetails(method) ?? supportMethodDetails('lightning');
+}
+
+function isSupportQrMethod(id: ValueLinkId): id is SupportQrMethod {
+  return id === 'lightning' || id === 'onchain' || id === 'silent';
+}
+
+function copyTitlePaymentTarget(): void {
+  const details = supportMethodDetails(titlePaymentMethod);
+  if (!details) return;
+  titleValueStatus = `COPYING ${details.addressLabel}`;
+  void copyTitleValueTarget(details.copyText, titlePaymentMethod);
 }
 
 function valueCopyTextForLink(id: ValueLinkId, href: string): string {
-  if (id === 'lightning') return VALUE_FOR_VALUE.qrValue.replace(/^lightning:/i, '');
+  if (isSupportQrMethod(id)) return supportMethodDetails(id)?.copyText ?? href;
   return href;
 }
 
@@ -12345,10 +12419,12 @@ async function copyTitleValueTarget(text: string, id: ValueLinkId, opened = fals
   try {
     if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
     await navigator.clipboard.writeText(text);
-    titleValueStatus = id === 'lightning' ? 'LIGHTNING ADDRESS COPIED' : `${label} ${opened ? 'TAB OPENED · ' : ''}LINK COPIED`;
+    titleValueStatus = isSupportQrMethod(id)
+      ? `${supportMethodDetails(id)?.addressLabel ?? label} COPIED`
+      : `${label} ${opened ? 'TAB OPENED · ' : ''}LINK COPIED`;
     titleStatus = titleValueStatus;
   } catch {
-    titleValueStatus = id === 'lightning'
+    titleValueStatus = isSupportQrMethod(id)
       ? 'COPY BLOCKED · ADDRESS VISIBLE'
       : `${label} ${opened ? 'TAB OPENED · ' : 'OPEN BLOCKED · '}COPY BLOCKED`;
     titleStatus = titleValueStatus;
@@ -12500,6 +12576,8 @@ function setSupportStatus(status: string): void {
 function activateScoreValueLink(id: ValueLinkId): void {
   const link = VALUE_FOR_VALUE.links.find(item => item.id === id);
   if (!link) return;
+  // Address-carrying methods also swap the panel's QR to match the tap.
+  if (isSupportQrMethod(id)) scoreSupportMethod = id;
   const launched = openScoreValueLink(link.href, id);
   markScoreValueLinkActivated(id, launched);
   // Phones dead-end here silently — lightning: has no handler without a
@@ -12516,10 +12594,12 @@ async function copyScoreValueTarget(text: string, id: ValueLinkId, launched: boo
   } catch {
     return; // markScoreValueLinkActivated's status stands.
   }
-  if (id === 'lightning') {
+  if (id === 'lightning' || id === 'onchain') {
     setSupportStatus(launched
       ? 'WALLET PROMPTED · ADDRESS COPIED · TAP I PAID IF YOU DID'
       : 'ADDRESS COPIED · PASTE IN YOUR WALLET · TAP I PAID');
+  } else if (id === 'silent') {
+    setSupportStatus('SILENT CODE COPIED · PASTE IN A SILENT-PAYMENTS WALLET');
   } else if (!launched) {
     setSupportStatus(`${titleValueLinkLabel(id)} BLOCKED · LINK COPIED · PASTE IN BROWSER`);
   }
@@ -12530,8 +12610,12 @@ async function copyScoreValueTarget(text: string, id: ValueLinkId, launched: boo
 // player confirms themselves via the I PAID button.
 function markScoreValueLinkActivated(id: ValueLinkId, launched: boolean): void {
   const label = titleValueLinkLabel(id);
-  setSupportStatus(id === 'lightning'
-    ? launched ? 'WALLET PROMPTED · TAP I PAID IF YOU DID' : 'SATS LINK BLOCKED · SCAN THE QR'
+  if (id === 'silent') {
+    setSupportStatus('SILENT PAYMENT · SCAN THE QR OR COPY THE CODE');
+    return;
+  }
+  setSupportStatus(id === 'lightning' || id === 'onchain'
+    ? launched ? 'WALLET PROMPTED · TAP I PAID IF YOU DID' : `${label} LINK BLOCKED · SCAN THE QR`
     : launched ? `${label} OPENED · TAP I PAID IF YOU DID` : `${label} POPUP BLOCKED`);
 }
 
@@ -12541,7 +12625,9 @@ function markNativeScoreValueLinkActivated(id: ValueLinkId): void {
 }
 
 function openScoreValueLink(href: string, id: ValueLinkId): boolean {
-  if (id === 'lightning') {
+  // Silent payment codes have no URI scheme to launch — copy/scan only.
+  if (id === 'silent') return false;
+  if (id === 'lightning' || id === 'onchain') {
     try {
       window.location.href = href;
       return true;
@@ -12553,7 +12639,8 @@ function openScoreValueLink(href: string, id: ValueLinkId): boolean {
 }
 
 function isTitleValueField(value: string): value is TitleValueField {
-  return value === 'value-lightning' || value === 'value-geyser' || value === 'value-kofi';
+  return value === 'value-lightning' || value === 'value-onchain' || value === 'value-silent'
+    || value === 'value-geyser' || value === 'value-kofi';
 }
 
 function titleShipAccent(ship: ShipClass): string {
@@ -14180,13 +14267,13 @@ function handleTitlePaymentModalKey(code: string): boolean {
     return true;
   }
   if (code === 'Enter' || code === 'Space') {
-    if (titlePaymentAction === 'copy') copyLightningPaymentTarget();
+    if (titlePaymentAction === 'copy') copyTitlePaymentTarget();
     else closeTitlePaymentModal();
     return true;
   }
   if (code === 'KeyC') {
     titlePaymentAction = 'copy';
-    copyLightningPaymentTarget();
+    copyTitlePaymentTarget();
     return true;
   }
   return true;
