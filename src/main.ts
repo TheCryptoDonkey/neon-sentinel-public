@@ -23,6 +23,7 @@ import {
 } from './audio.js';
 import { applyPostFx } from './postfx.js';
 import { cleanGuestName, createGuestSession, getGuestRecord, isGuestSession, renameGuest, restoreGuestSession } from './guest.js';
+import { COMBO_CAP, COMBO_STEP_MULT, KILL_BASE_CARRIER, SURGE_SCORE_MULT, WAVE_CLEAR_FLAT, WAVE_CLEAR_STEP } from './score-model.js';
 import { fetchFollowerPubkeys, fetchFollowPubkeys, fetchProfiles, getCachedProfile, profileDisplayName, profilePictureCandidates, type NostrProfile } from './profiles.js';
 import {
   buildScoreEvent,
@@ -4018,7 +4019,7 @@ function applyBeaconEffect(b: Beacon): void {
   }
   if (b.kind === 'cult') {
     state.ship.invuln = Math.max(state.ship.invuln, 1.6);
-    state.combo = Math.min(40, state.combo + 3);
+    state.combo = Math.min(COMBO_CAP, state.combo + 3);
     state.maxCombo = Math.max(state.maxCombo, state.combo);
     state.comboUntil = Math.max(state.comboUntil, 3);
     state.message = 'We Are NOT A Cult!';
@@ -4037,7 +4038,7 @@ function applyBeaconEffect(b: Beacon): void {
     if (rand() < 0.65) {
       addBurstCharge(1);
       state.ship.invuln = Math.max(state.ship.invuln, 2);
-      state.combo = Math.min(40, state.combo + 2);
+      state.combo = Math.min(COMBO_CAP, state.combo + 2);
       state.maxCombo = Math.max(state.maxCombo, state.combo);
       state.comboUntil = Math.max(state.comboUntil, 3);
       state.message = 'Scooter Zoom!';
@@ -4098,7 +4099,7 @@ function applyBeaconEffect(b: Beacon): void {
 }
 
 function scoreMultiplier(): number {
-  return state.scoreSurge > 0 ? 2 : 1;
+  return state.scoreSurge > 0 ? SURGE_SCORE_MULT : 1;
 }
 
 function beaconPickupMessageDuration(b: Beacon): number {
@@ -4313,7 +4314,7 @@ function maybeAdvanceWave(dt: number): void {
   }
   if (state.waveClear <= 0) {
     state.waveClear = 1.8;
-    state.score += 1200 + state.wave * 420;
+    state.score += WAVE_CLEAR_FLAT + state.wave * WAVE_CLEAR_STEP;
     if (state.skill === '600b') {
       spawnBeacon(state.wave % 4 === 0 ? 3 : state.wave % 2 === 0 ? 2 : 1);
     } else if (state.signals.filter(s => s.status !== 'lost').length >= CONTACT_COUNT - 2) {
@@ -4942,7 +4943,7 @@ function killEnemy(e: Enemy, burst: boolean, source: KillSource = burst ? 'burst
   }
   const collision = source === 'collision';
   if (!collision) {
-    state.combo = Math.min(40, state.combo + 1);
+    state.combo = Math.min(COMBO_CAP, state.combo + 1);
     state.maxCombo = Math.max(state.maxCombo, state.combo);
     state.comboUntil = 2.6;
     if (state.combo >= 2) {
@@ -4954,7 +4955,7 @@ function killEnemy(e: Enemy, burst: boolean, source: KillSource = burst ? 'burst
     }
     registerComboMilestone();
   }
-  const base = e.type === 'carrier' ? 5200
+  const base = e.type === 'carrier' ? KILL_BASE_CARRIER
     : e.type === 'forgery' ? (e.forgedMember ? 1200 : 850)
       : e.type === 'troll' ? 980
         : e.type === 'hunter' ? 760
@@ -4962,7 +4963,7 @@ function killEnemy(e: Enemy, burst: boolean, source: KillSource = burst ? 'burst
             : e.type === 'jammer' ? 680
               : e.type === 'sybil' ? (e.maxHp > 1 ? 540 : 260)
                 : 430;
-  const points = collision ? 0 : Math.floor(base * (1 + Math.floor(state.combo / 5) * 0.18) * (burst ? 0.65 : 1)) * scoreMultiplier();
+  const points = collision ? 0 : Math.floor(base * (1 + Math.floor(state.combo / 5) * COMBO_STEP_MULT) * (burst ? 0.65 : 1)) * scoreMultiplier();
   state.score += points;
   if (!collision) {
     const popScale = 1 + Math.min(state.combo, 20) * 0.05;
@@ -12870,17 +12871,47 @@ async function claimAndPublishScore(summary: RelaykeepRunSummary, prompt: boolea
     }
     activePlayerSession = session;
 
+    // Auth-only arcade sessions carry a signer whose signEvent rejects every
+    // call. Decide the claim-signing identity BEFORE building the NIP-98 body:
+    // an honestly-attributed guest score beats a silently lost one.
+    let signingSession: SignetSession = session;
+    let asGuestFallback = false;
+    if (!sessionCanSignEvents(session)) {
+      const guest = await guestClaimSession();
+      if (!guest) {
+        setScoreStatus(prompt ? 'SIGNER NOT READY' : 'SIGN SCORE READY · NO PAYOUT');
+        return null;
+      }
+      signingSession = guest;
+      asGuestFallback = true;
+    }
+
     scoreSubmitInFlight = true;
-    setScoreStatus('SIGNING NIP-98 CLAIM');
-    const claim = await submitScoreClaim(session, summary);
+    setScoreStatus(asGuestFallback ? 'SIGNING NIP-98 CLAIM AS GUEST' : 'SIGNING NIP-98 CLAIM');
+    let claimSummary: RelaykeepRunSummary = asGuestFallback ? { ...summary, playerMode: 'guest' } : summary;
+    let claim = await submitScoreClaim(signingSession, claimSummary);
+    if (!claim.ok && claim.error === 'sign_failed' && !asGuestFallback && !isGuestSession(signingSession)) {
+      // The signer looked usable but refused at the moment of truth (bunker
+      // offline, arcade socket closed). One retry with the local guest key.
+      const guest = await guestClaimSession();
+      if (guest) {
+        signingSession = guest;
+        asGuestFallback = true;
+        setScoreStatus('SIGNING NIP-98 CLAIM AS GUEST');
+        claimSummary = { ...summary, playerMode: 'guest' };
+        claim = await submitScoreClaim(guest, claimSummary);
+      }
+    }
     if (claim.ok) {
       scorePublished = true;
-      setScoreStatus(`GAME 30762 ${shortId(claim.score_event_id)}`);
+      setScoreStatus(asGuestFallback
+        ? `GAME 30762 ${shortId(claim.score_event_id)} · AS GUEST (NOSTR SIGNER OFFLINE)`
+        : `GAME 30762 ${shortId(claim.score_event_id)}`);
       return { kind: 'claim', result: claim };
     }
 
     if (shouldClientPublishFallback(claim)) {
-      const fallback = await publishClientScore(summary, session, scoreClaimErrorLabel(claim));
+      const fallback = await publishClientScore(claimSummary, signingSession, scoreClaimErrorLabel(claim));
       if (fallback) return fallback;
     }
 
@@ -12898,6 +12929,19 @@ async function claimAndPublishScore(summary: RelaykeepRunSummary, prompt: boolea
 function shouldClientPublishFallback(result: ClaimResult): boolean {
   if (result.ok) return false;
   return DIRECT_CLIENT_SCORE;
+}
+
+function sessionCanSignEvents(session: SignetSession): boolean {
+  const signer = session.signer as { capabilities?: { canSignEvents?: boolean } };
+  return signer.capabilities?.canSignEvents !== false;
+}
+
+async function guestClaimSession(): Promise<SignetSession | null> {
+  try {
+    return await restoreGuestSession() ?? await createGuestSession(state.playerName || 'Guest');
+  } catch {
+    return null;
+  }
 }
 
 async function publishClientScore(

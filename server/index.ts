@@ -16,6 +16,7 @@ import {
   validateEventUrlTag,
 } from 'nostr-tools/nip98';
 import { parseSixHundredRegistry, sixHundredNip05, SIX_HUNDRED_REGISTRY_URL } from '../src/sixhundred-registry.js';
+import { maxPlausibleWave, scoreCeiling } from '../src/score-model.js';
 
 const GAME_ID = 'neonsentinel';
 const SCORE_KIND = 30762;
@@ -650,7 +651,6 @@ function parseClaim(body: unknown): { ok: true; claim: ClaimInput } | { ok: fals
   const claim = value as ClaimInput;
   const now = Date.now();
   if (claim.score <= 0) return { ok: false, status: 422, error: 'invalid_score' };
-  if (claim.wave <= 0 || claim.wave > 100) return { ok: false, status: 422, error: 'invalid_wave' };
   if (claim.duration_ms <= 0 || claim.duration_ms > MAX_DURATION_MS) return { ok: false, status: 422, error: 'invalid_duration' };
   if (claim.started_at >= claim.finished_at || claim.finished_at > now + FUTURE_SLACK_MS) {
     return { ok: false, status: 422, error: 'invalid_run_clock' };
@@ -659,8 +659,15 @@ function parseClaim(body: unknown): { ok: true; claim: ClaimInput } | { ok: fals
   const clockSkew = Math.abs(claim.duration_ms - (claim.finished_at - claim.started_at));
   if (clockSkew > 5000) return { ok: false, status: 422, error: 'duration_clock_mismatch' };
   const durationSec = claim.duration_ms / 1000;
-  const plausibleScore = 18_000 + claim.wave * 28_000 + durationSec * 5200;
-  if (claim.score > plausibleScore) return { ok: false, status: 422, error: 'implausible_score' };
+  // Ceilings derived from the game's own scoring constants (src/score-model.ts);
+  // survival is open-ended, so the wave bound comes from wall-clock time, not
+  // a hand-picked maximum.
+  if (claim.wave <= 0 || claim.wave > maxPlausibleWave(durationSec)) {
+    return { ok: false, status: 422, error: 'invalid_wave' };
+  }
+  if (claim.score > scoreCeiling(claim.wave, durationSec)) {
+    return { ok: false, status: 422, error: 'implausible_score' };
+  }
   return { ok: true, claim };
 }
 
