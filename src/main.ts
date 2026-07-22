@@ -55,6 +55,15 @@ import {
 } from './pickup-icons.js';
 import { getReducedEffects, getTheme, getVisualTier, setVisualTier, setupVisualSettings } from './visual-settings.js';
 import { getValueForValueConfig, getValueForValueQrCanvas } from './value-for-value.js';
+import {
+  initV4vAsk,
+  isV4vAskOpen,
+  isV4vBlessed,
+  openV4vAsk,
+  shouldAskV4v,
+  V4V_BLESSING_SHIELD,
+  V4V_BLESSING_TIME_SECONDS,
+} from './v4v-ask.js';
 import { fetchLeaderboard, getCachedLeaderboard, rankForScore, type LeaderboardEntry, type LeaderboardSnapshot } from './leaderboard.js';
 import { isSixHundredMember, loadSixHundredRegistry, sixHundredHandle, sixHundredNip05 } from './sixhundred.js';
 import {
@@ -1453,6 +1462,24 @@ function startRun(wave = START_WAVE): void {
   supportNudgeLine = null;
   setScoreStatus('LOCAL SCORE · NO PAYOUT');
   cameraX = state.ship.x;
+  // Patron's blessing: sats within the last 24 h buy a harder launch — the
+  // reward promised on the value-for-value overlay. Never in demo runs, and
+  // never in the daily gauntlet (same seed, same ship, same pressure for
+  // everyone — a paid edge would break the shared board).
+  if (!state.demo && !state.daily && isV4vBlessed()) {
+    addShipShield(V4V_BLESSING_SHIELD);
+    addTime(V4V_BLESSING_TIME_SECONDS);
+    preloadVoiceClip(SHIELD_VOICE_URL);
+    const blessedRunId = state.runId;
+    window.setTimeout(() => {
+      // Slot the callout after the WAVE 1 card has had its say.
+      if (state.phase !== 'playing' || state.runId !== blessedRunId) return;
+      state.message = `PATRON'S BLESSING · +${V4V_BLESSING_SHIELD} SHIELD · +${V4V_BLESSING_TIME_SECONDS}s`;
+      state.messageUntil = 2.1;
+      spawnText(state.ship.x, state.ship.y - 78, "PATRON'S BLESSING", '#ffd84a', undefined, 1.6);
+      playVoiceClip(SHIELD_VOICE_URL, 1.15);
+    }, 1600);
+  }
   publishPlaytestTrace();
   buildRivalLadder();
   // Refresh the board in the background so the ladder reflects fresh scores;
@@ -1507,8 +1534,14 @@ function exitAttractRun(): void {
   syncScoreActions();
 }
 
-async function startGuestRunFromTitle(): Promise<void> {
-  if (titleStartInFlight) return;
+async function startGuestRunFromTitle(fromV4vAsk = false): Promise<void> {
+  if (titleStartInFlight || isV4vAskOpen()) return;
+  // Value for value, front and centre: every run launched from the title
+  // passes through the ask first. Retry and instant-restart skip it.
+  if (!fromV4vAsk && shouldAskV4v()) {
+    openV4vAsk(() => void startGuestRunFromTitle(true));
+    return;
+  }
   beginTitleLaunch('start', 'GUEST MODE · PREPARING LOCAL SIGNER');
   try {
     let session = await restoreGuestSession();
@@ -1532,8 +1565,15 @@ async function startGuestRunFromTitle(): Promise<void> {
   }
 }
 
-async function startNostrRunFromTitle(): Promise<void> {
-  if (titleStartInFlight) return;
+async function startNostrRunFromTitle(fromV4vAsk = false): Promise<void> {
+  if (titleStartInFlight || isV4vAskOpen()) return;
+  // Same value-for-value gate as the guest path — the resume callback runs
+  // synchronously from the overlay button click, so the Signet popup keeps
+  // its user-gesture context.
+  if (!fromV4vAsk && shouldAskV4v()) {
+    openV4vAsk(() => void startNostrRunFromTitle(true));
+    return;
+  }
   beginTitleLaunch('login', activeNostrSession() ? 'NOSTR CONNECTED · LOADING FOLLOWERS' : 'LOGIN · OPENING SIGNET');
   try {
     const session = activeNostrSession() ?? await loginWithSignet();
@@ -2616,7 +2656,7 @@ function update(dt: number): void {
       }
     } else if (state.phase === 'title') {
       if (consumeStart()) void startGuestRunFromTitle();
-      else if (!titleStartInFlight && !titlePaymentModalOpen && performance.now() - titleIdleAt > ATTRACT_DELAY_MS) {
+      else if (!titleStartInFlight && !titlePaymentModalOpen && !isV4vAskOpen() && performance.now() - titleIdleAt > ATTRACT_DELAY_MS) {
         startAttractRun();
       }
     } else if (consumeStart()) startRun();
@@ -6022,6 +6062,8 @@ function makeDebugFrame() {
       }))
       : [],
     valueThanksVisible,
+    v4vAskOpen: isV4vAskOpen(),
+    v4vBlessed: isV4vBlessed(),
     scoreStatus,
     scoreActionsVisible: scoreActions instanceof HTMLElement ? !scoreActions.hidden : false,
     gameOverStage,
@@ -14846,6 +14888,9 @@ window.addEventListener('keydown', ev => {
 window.addEventListener('keydown', ev => {
   unlockGameAudio();
   markPlayerActivity();
+  // The value-for-value ask owns input while it is up — its DOM buttons take
+  // Tab/Enter natively, and nothing here may buffer a start underneath it.
+  if (isV4vAskOpen()) return;
   if (attractMode) {
     // Any key ends the demo; the press is consumed so it cannot also start
     // a run or toggle anything on the title underneath.
@@ -15242,6 +15287,7 @@ window.neonSentinelScoreStatus = scoreStatus;
 window.relaykeepClaimLastScore = claimAndPublishLastScore;
 window.relaykeepSignLastScore = claimAndPublishLastScore;
 window.relaykeepScoreStatus = scoreStatus;
+initV4vAsk();
 syncScoreActions();
 if (DEBUG_EXPLOSION) {
   let triggered = false;

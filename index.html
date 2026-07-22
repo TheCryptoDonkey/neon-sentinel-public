@@ -85,6 +85,31 @@
     <button id="touch-fire" type="button" aria-label="Fire">◆</button>
     <button id="touch-burst" type="button" aria-label="Zap burst">₿</button>
   </div>
+  <div id="v4v" role="dialog" aria-modal="true" aria-label="Value for value" hidden>
+    <div class="v4v-panel">
+      <div id="v4v-ask">
+        <div class="v4v-kicker">VALUE FOR VALUE</div>
+        <h2 class="v4v-title">KEEP THE RELAY LIT</h2>
+        <p id="v4v-nudge" class="v4v-nudge"></p>
+        <img id="v4v-qr" class="v4v-qr" alt="Lightning QR" width="228" height="228" />
+        <div id="v4v-reward" class="v4v-reward"></div>
+        <button id="v4v-addr" type="button" class="v4v-addr"></button>
+        <div class="v4v-links">
+          <a id="v4v-geyser" target="_blank" rel="noopener">GEYSER</a>
+          <a id="v4v-kofi" target="_blank" rel="noopener">KO-FI</a>
+        </div>
+        <button id="v4v-paid" type="button" class="v4v-primary">I PAID</button>
+        <button id="v4v-later" type="button" class="v4v-ghost">NEXT TIME</button>
+      </div>
+      <div id="v4v-thanks" hidden>
+        <div class="v4v-kicker">FROM THECRYPTODONKEY</div>
+        <img src="/memes/donkey-thankz-small.png" class="v4v-thanks-img" alt="THANKZ" />
+        <div class="v4v-thanks-line">THANK YOU · SATS APPRECIATED</div>
+        <div id="v4v-thanks-reward" class="v4v-reward"></div>
+        <button id="v4v-start" type="button" class="v4v-primary">LAUNCH</button>
+      </div>
+    </div>
+  </div>
   <div id="score-actions" aria-live="polite" hidden>
     <button id="score-publish" type="button">SIGN SCORE</button>
     <div id="value-action-group" aria-label="Value for value support" hidden>

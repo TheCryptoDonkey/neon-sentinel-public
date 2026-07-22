@@ -62,13 +62,34 @@ const scenarios = [
     settleMs: 220,
   },
   {
+    name: 'title-v4v-ask',
+    path: '/',
+    size: '1440,900',
+    // The ask dims and blurs the title behind it, so the PNG compresses far
+    // smaller than the raw title screens.
+    minNonDark: 0.05,
+    minBytes: 180_000,
+    timeoutMs: 28_000,
+    actions: [clickTitleActionExpression('start')],
+    waitFor: `(() => {
+      const frame = window.neonSentinelDebugFrame?.();
+      const overlay = document.getElementById('v4v');
+      return frame?.phase === 'title'
+        && frame.v4vAskOpen === true
+        && overlay instanceof HTMLElement
+        && !overlay.hidden
+        && String(document.getElementById('v4v-reward')?.textContent || '').includes('PATRONS FIGHT BLESSED');
+    })()`,
+    settleMs: 300,
+  },
+  {
     name: 'title-guest-launch',
     path: '/',
     size: '1440,900',
     minNonDark: 0.045,
     minBytes: 520_000,
     timeoutMs: 28_000,
-    actions: [clickTitleActionExpression('start')],
+    actions: [clickTitleActionExpression('start'), declineV4vAskExpression()],
     waitFor: `(() => {
       const frame = window.neonSentinelDebugFrame?.();
       return frame?.phase === 'playing'
@@ -497,6 +518,25 @@ function gameoverSupportExpression() {
       && frame.gameOverSupportOpen === true
       && frame.gameOverValueButtons >= 3;
   })()`;
+}
+
+function declineV4vAskExpression() {
+  // Every title launch now leads with the value-for-value ask; NEXT TIME
+  // declines it and lets the run proceed.
+  return `new Promise((resolve, reject) => {
+    const started = Date.now();
+    const tick = () => {
+      if (Date.now() - started > 12000) return reject(new Error('v4v ask never appeared'));
+      const overlay = document.getElementById('v4v');
+      const later = document.getElementById('v4v-later');
+      if (overlay instanceof HTMLElement && !overlay.hidden && later instanceof HTMLElement) {
+        later.click();
+        return resolve('declined');
+      }
+      setTimeout(tick, 120);
+    };
+    tick();
+  })`;
 }
 
 function clickTitleActionExpression(action) {
