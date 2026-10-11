@@ -38,6 +38,7 @@ import {
   type ScoreRunMetrics,
   type SignedNostrEvent,
 } from './scoring.js';
+import { pendingPersonalScores, rememberPersonalScore, forgetPersonalScore } from './personal-score-outbox.js';
 import { consumeArcadeHandoff } from './arcade-handoff.js';
 import { getTuning, getTuningReadout } from './tuning.js';
 import type { MeshFrame } from './mesh-overlay.js';
@@ -93,6 +94,7 @@ interface SignetSession {
 }
 
 interface SignetApi {
+  handleRedirectCallback?(opts?: Record<string, unknown>): Promise<{kind: string; session?: SignetSession}>;
   restoreSession?(opts?: Record<string, unknown>): Promise<SignetSession | null>;
   login?(opts: Record<string, unknown>): Promise<SignetSession | null>;
   logout?(session?: SignetSession): Promise<void>;
@@ -583,6 +585,14 @@ const maybeCtx = canvas.getContext('2d', { alpha: false });
 if (!maybeCtx) throw new Error('2D canvas unavailable');
 const ctx = maybeCtx;
 const scoreActions = document.getElementById('score-actions');
+const recoveryOpen = document.getElementById('score-recovery-open') as HTMLButtonElement;
+const recoveryDialog = document.getElementById('score-recovery') as HTMLDialogElement;
+const recoverySelect = document.getElementById('score-recovery-runs') as HTMLSelectElement;
+const recoveryStatus = document.getElementById('score-recovery-status') as HTMLElement;
+const recoveryRetry = document.getElementById('score-recovery-retry') as HTMLButtonElement;
+const recoveryReconnect = document.getElementById('score-recovery-reconnect') as HTMLButtonElement;
+let recoveryMessage = '';
+let recoveryBusy = false;
 const scorePublishButton = document.getElementById('score-publish');
 const scoreActionStatus = document.getElementById('score-action-status');
 const valueSupportLink = document.getElementById('value-support');
@@ -1004,6 +1014,15 @@ const DEBUG_COMBAT = QUERY.has('combat');
 const DEBUG_MUSIC = QUERY.has('musicDebug');
 
 let activePlayerSession: SignetSession | null = null;
+let scoreGeneration = 0;
+function selectPlayerSession(session: SignetSession | null): void {
+  if (activePlayerSession !== session) {
+    scoreGeneration++;
+    scoreSubmitInFlight = false;
+    activePlayerSession = session;
+    syncPersonalRecovery();
+  }
+}
 let activePlayerProfile: NostrProfile | null = null;
 let activeRosterOffset = 0;
 let titleStartInFlight = false;
@@ -1455,6 +1474,7 @@ function startRun(wave = START_WAVE): void {
   gameOverStage = 'score';
   gameOverNamePending = false;
   pressedOnce.clear();
+  scoreGeneration++;
   lastRunSummary = null;
   lastFeelReport = null;
   scoreSubmitInFlight = false;
@@ -1551,7 +1571,7 @@ async function startGuestRunFromTitle(fromV4vAsk = false): Promise<void> {
       session = await createGuestSession(getGuestRecord()?.name ?? 'Guest');
     }
     setTitleLaunchProgress(0.72);
-    activePlayerSession = session;
+    selectPlayerSession(session);
     activePlayerProfile = null;
     activeContactRoster = roster;
     activeRosterOffset = 0;
@@ -1582,7 +1602,7 @@ async function startNostrRunFromTitle(fromV4vAsk = false): Promise<void> {
       titleStatus = 'LOGIN CANCELLED · GUEST STILL AVAILABLE';
       return;
     }
-    activePlayerSession = session;
+    selectPlayerSession(session);
     activePlayerProfile = getCachedProfile(session.pubkey);
     setTitleLaunchProgress(0.42);
     titleStatus = 'NOSTR CONNECTED · LOADING FOLLOWERS';
@@ -1703,6 +1723,8 @@ function rosterRelationForNostrCandidate(source: NostrRosterSource, index: numbe
 }
 
 async function loadActivePlayerProfile(pubkey: string): Promise<void> {
+  const generation = scoreGeneration;
+  if (activePlayerSession?.pubkey !== pubkey) return;
   const cached = getCachedProfile(pubkey);
   if (cached) {
     activePlayerProfile = cached;
@@ -1711,7 +1733,7 @@ async function loadActivePlayerProfile(pubkey: string): Promise<void> {
   try {
     const profiles = await fetchProfiles([pubkey], { refreshMissingPictures: true, timeoutMs: 3200 });
     const profile = profiles.get(pubkey) ?? getCachedProfile(pubkey);
-    if (!profile) return;
+    if (!profile || generation !== scoreGeneration || activePlayerSession?.pubkey !== pubkey) return;
     activePlayerProfile = profile;
     ensureProfileImageEntry(profile.picture);
   } catch {
@@ -1721,14 +1743,42 @@ async function loadActivePlayerProfile(pubkey: string): Promise<void> {
 
 async function restoreNostrTitleSession(): Promise<void> {
   if (activePlayerSession || titleStartInFlight) return;
+  const generation = scoreGeneration;
   try {
     const arcadeSession = await consumeArcadeHandoff(GAME_ID);
+    // Vite moves the module into the head; the deferred SDK can finish later.
+    // Wait for its actual load event without blocking guest play or adopting
+    // a restored identity after the player has chosen another session.
+    if (!arcadeSession && !window.Signet?.restoreSession) {
+      const script = document.querySelector<HTMLScriptElement>('script[src="/signet/signet-login.iife.js"]');
+      if (script) await new Promise<void>(resolve => {
+        const finish = () => {
+          clearTimeout(timer);
+          script.removeEventListener('load', finish);
+          script.removeEventListener('error', finish);
+          resolve();
+        };
+        const timer = window.setTimeout(finish, 10_000);
+        script.addEventListener('load', finish, {once:true});
+        script.addEventListener('error', finish, {once:true});
+        if (window.Signet?.restoreSession) finish();
+      });
+    }
+    if (generation !== scoreGeneration || activePlayerSession || titleStartInFlight) {
+      void arcadeSession?.signer.close?.();
+      return;
+    }
     const signet = window.Signet;
-    const session = arcadeSession ?? (signet?.restoreSession
+    const callback = arcadeSession ? null : await signet?.handleRedirectCallback?.();
+    if (callback && callback.kind !== 'no-callback' && callback.kind !== 'session') {
+      titleStatus = callback.kind === 'denied' ? 'LOGIN CANCELLED · YOUR SAVED SCORES REMAIN' : 'LOGIN RETURN INVALID · TRY AGAIN';
+      return;
+    }
+    const session = arcadeSession ?? callback?.session ?? (signet?.restoreSession
       ? await signet.restoreSession({ reconnectBunker: false })
       : null);
-    if (!isUsableSignetSession(session)) return;
-    activePlayerSession = session;
+    if (generation !== scoreGeneration || activePlayerSession || titleStartInFlight || !isUsableSignetSession(session)) return;
+    selectPlayerSession(session);
     activePlayerProfile = getCachedProfile(session.pubkey);
     const memberHandle = sixHundredHandle(session.pubkey);
     if (memberHandle) applySixHundredMemberPerk();
@@ -1749,6 +1799,7 @@ function applySixHundredMemberPerk(): void {
 
 async function logoutFromTitle(): Promise<void> {
   if (titleStartInFlight) return;
+  scoreGeneration++;
   titleStartInFlight = true;
   titleMenuField = 'logout';
   titleStatus = 'LOGGING OUT';
@@ -1759,7 +1810,7 @@ async function logoutFromTitle(): Promise<void> {
   } catch {
     try { await session?.signer.close?.(); } catch { /* ignore */ }
   } finally {
-    activePlayerSession = null;
+    selectPlayerSession(null);
     activePlayerProfile = null;
     activeContactRoster = roster;
     activeRosterOffset = 0;
@@ -1820,6 +1871,7 @@ function quitPausedRunToTitle(): void {
   pauseMenuChoice = 'resume';
   titleMenuField = 'start';
   resetActiveInput();
+  scoreGeneration++;
   lastRunSummary = null;
   lastFeelReport = null;
   scoreSubmitInFlight = false;
@@ -12871,6 +12923,7 @@ function recordFinishedRun(): void {
     playAudio('musicSurge', 0.7);
   }
   finaliseLocalRun(summary);
+  if (summary.playerMode === 'nostr') rememberPersonalScore(summary);
   // Guests rename themselves on the arcade name entry screen; hold the claim
   // back until then so the published score carries the chosen name.
   if (!gameOverNamePending) void claimAndPublishScore(summary, false);
@@ -12889,14 +12942,24 @@ async function claimAndPublishLastScore(): Promise<ScoreSubmitResult | null> {
   return claimAndPublishScore(lastRunSummary, true);
 }
 
-async function claimAndPublishScore(summary: RelaykeepRunSummary, prompt: boolean): Promise<ScoreSubmitResult | null> {
+async function claimAndPublishScore(inputSummary: RelaykeepRunSummary, prompt: boolean): Promise<ScoreSubmitResult | null> {
   if (scoreSubmitInFlight) return null;
+  const summary = pendingPersonalScores(inputSummary.playerPubkey ?? '').find(receipt => receipt.summary.runId === inputSummary.runId)?.summary ?? structuredClone(inputSummary);
+  const currentReport = () => lastRunSummary?.runId === summary.runId;
+  const report = (status: string) => {
+    if (currentReport()) setScoreStatus(status);
+    else {recoveryMessage = status;syncPersonalRecovery();}
+  };
   const signet = window.Signet;
   if (!activePlayerSession && !signet) {
-    setScoreStatus(prompt ? 'SIGNET UNAVAILABLE' : 'SIGN SCORE READY · NO PAYOUT');
+    report(prompt ? 'SIGNET UNAVAILABLE' : 'SIGN SCORE READY · NO PAYOUT');
     return null;
   }
 
+  scoreSubmitInFlight = true;
+  let generation = scoreGeneration;
+  const isCurrent = () => generation === scoreGeneration;
+  syncScoreActions();
   try {
     const session = activePlayerSession
       ?? await signet?.restoreSession?.({ reconnectBunker: false })
@@ -12905,48 +12968,51 @@ async function claimAndPublishScore(summary: RelaykeepRunSummary, prompt: boolea
         relayUrl: 'wss://relay.trotters.cc',
         theme: 'dark',
       }) : null);
+    if (!isCurrent()) return null;
     if (!session) {
-      setScoreStatus(prompt ? 'SIGNING CANCELLED' : 'SIGN SCORE READY · NO PAYOUT');
+      report(prompt ? 'SIGNING CANCELLED' : 'SIGN SCORE READY · NO PAYOUT');
       return null;
     }
     if (!session.signer || typeof session.signer.signEvent !== 'function') {
-      setScoreStatus(prompt ? 'SIGNER NOT READY' : 'SIGN SCORE READY · NO PAYOUT');
+      report(prompt ? 'SIGNER NOT READY' : 'SIGN SCORE READY · NO PAYOUT');
       return null;
     }
-    activePlayerSession = session;
+    selectPlayerSession(session);
+    generation = scoreGeneration;
 
     if (summary.playerMode === 'nostr' && session.pubkey !== summary.playerPubkey) {
-      setScoreStatus('RECONNECT ORIGINAL ACCOUNT · SCORE KEPT LOCALLY');
+      report('RECONNECT ORIGINAL ACCOUNT · SCORE KEPT LOCALLY');
       return null;
     }
     if (!sessionCanSignEvents(session)) {
-      setScoreStatus('RECONNECT IN ARCADE · SCORE KEPT LOCALLY');
+      report(pendingPersonalScores(summary.playerPubkey ?? '').some(receipt => receipt.summary.runId === summary.runId) ? 'RECONNECT ACCOUNT · SCORE SAVED' : 'SIGNER OFFLINE · KEEP GAME OPEN');
       return null;
     }
 
     scoreSubmitInFlight = true;
-    setScoreStatus('SIGNING NIP-98 CLAIM');
-    const claim = await submitScoreClaim(session, summary);
+    report('SIGNING NIP-98 CLAIM');
+    const claim = await submitScoreClaim(session, summary, isCurrent);
+    if (!isCurrent()) return null;
     if (claim.ok) {
-      scorePublished = true;
-      setScoreStatus(`GAME 30762 ${shortId(claim.score_event_id)}`);
+      const confirmed = (claim.published?.ok ?? 0) > 0;
+      if (currentReport()) scorePublished = confirmed;
+      report(confirmed ? `GAME 30762 ${shortId(claim.score_event_id)}` : 'PUBLICATION UNCONFIRMED · SCORE SAVED');
       return { kind: 'claim', result: claim };
     }
 
     if (shouldClientPublishFallback(claim)) {
-      const fallback = await publishClientScore(summary, session, scoreClaimErrorLabel(claim));
+      const fallback = await publishClientScore(summary, session, scoreClaimErrorLabel(claim), isCurrent, report, currentReport);
       if (fallback) return fallback;
     }
 
-    setScoreStatus(summary.playerMode === 'nostr' && claim.error === 'sign_failed'
-      ? 'RECONNECT IN ARCADE · SCORE KEPT LOCALLY' : scoreClaimErrorLabel(claim));
+    report(summary.playerMode === 'nostr' && claim.error === 'sign_failed'
+      ? 'RECONNECT ACCOUNT · SCORE SAVED' : scoreClaimErrorLabel(claim));
     return { kind: 'claim', result: claim };
   } catch (err) {
-    setScoreStatus(err instanceof Error ? `SIGN FAIL ${err.message.slice(0, 26)}` : 'SIGN FAIL');
+    if (isCurrent()) report(err instanceof Error ? `SIGN FAIL ${err.message.slice(0, 26)}` : 'SIGN FAIL');
     return null;
   } finally {
-    scoreSubmitInFlight = false;
-    syncScoreActions();
+    if (isCurrent()) { scoreSubmitInFlight = false; syncScoreActions(); }
   }
 }
 
@@ -12964,18 +13030,24 @@ async function publishClientScore(
   summary: RelaykeepRunSummary,
   session: SignetSession,
   reason = 'CLAIM API OFFLINE',
+  isCurrent: () => boolean = () => true,
+  report: (status: string) => void = setScoreStatus,
+  currentReport: () => boolean = () => true,
 ): Promise<ScoreSubmitResult | null> {
-  setScoreStatus(`${reason} · SIGNING 30762`);
+  report(`${reason} · SIGNING 30762`);
   const pubkey = session.pubkey;
   const draft = buildScoreEvent(summary, pubkey);
   const signed = verifiedSignedTemplate(await session.signer.signEvent(structuredClone(draft) as unknown as Record<string, unknown>), pubkey, draft);
+  if (!isCurrent()) return null;
   if (!signed || (summary.playerMode === 'nostr' && signed.pubkey !== summary.playerPubkey)) throw new Error('original-account-signature-required');
   const results = await publishSignedScore(signed as SignedNostrEvent);
   const ok = results.filter(result => result.ok).length;
   const total = results.length;
   const published = ok > 0;
-  scorePublished = published;
-  setScoreStatus(published
+  if (published && summary.playerMode === 'nostr') forgetPersonalScore(pubkey, summary.runId);
+  if (!isCurrent()) return null;
+  if (currentReport()) scorePublished = published;
+  report(published
     ? `KIND 30762 RELAY ${ok}/${total}`
     : total > 0
       ? `KIND 30762 SIGNED · RELAY 0/${total}`
@@ -12986,6 +13058,8 @@ async function publishClientScore(
 function scoreClaimErrorLabel(result: ClaimResult): string {
   if (result.ok) return 'GAME 30762 PUBLISHED';
   if (result.status === 404 || result.error === 'bad_response') return 'CLAIM API OFFLINE';
+  if (result.error === 'recovery_storage_unavailable') return 'CANNOT SAVE SCORE · KEEP GAME OPEN';
+  if (result.error === 'original_account_required') return 'RECONNECT ORIGINAL ACCOUNT';
   if (result.error === 'signer_unavailable') return 'CLAIM SIGNER OFFLINE';
   if (result.error === 'network_error') return 'CLAIM NETWORK ERROR';
   if (result.error === 'sign_failed') return `SIGN FAIL ${result.detail?.slice(0, 20) ?? ''}`.trim();
@@ -13001,6 +13075,7 @@ function setScoreStatus(status: string): void {
 
 function syncScoreActions(): void {
   document.body.dataset.neonPhase = state.phase;
+  syncPersonalRecovery();
   if (!(scoreActions instanceof HTMLElement)) return;
   // The sign bar belongs to the score stage; keep it out of the support ask
   // and the arcade name entry.
@@ -13018,6 +13093,69 @@ function syncScoreActions(): void {
     scorePublishButton.textContent = scoreSubmitInFlight ? 'SIGNING' : scorePublished ? 'PUBLISHED' : 'SIGN SCORE';
   }
 }
+
+function syncPersonalRecovery(): void {
+  const session = activeNostrSession();
+  const receipts = session ? pendingPersonalScores(session.pubkey) : [];
+  const visible = (state.phase === 'title' || (state.phase === 'gameover' && gameOverStage === 'score')) && receipts.length > 0;
+  recoveryOpen.hidden = !visible;
+  recoveryOpen.textContent = `SAVED SCORES (${receipts.length})`;
+  if (!visible) { if (recoveryDialog.open) recoveryDialog.close(); return; }
+  const previous = recoverySelect.value;
+  const fingerprint = JSON.stringify(receipts.map(receipt => [receipt.summary.runId, receipt.summary.score]));
+  if (recoverySelect.dataset.runs !== fingerprint) {
+    recoverySelect.replaceChildren(...receipts.map(receipt => {
+      const option = document.createElement('option');
+      option.value = receipt.summary.runId;
+      option.textContent = `${receipt.summary.score.toLocaleString()} points · ${new Date(receipt.summary.finishedAt).toLocaleString()}`;
+      return option;
+    }));
+    if (receipts.some(receipt => receipt.summary.runId === previous)) recoverySelect.value = previous;
+    recoverySelect.dataset.runs = fingerprint;
+  }
+  recoveryRetry.disabled = scoreSubmitInFlight || recoveryBusy || !session || !sessionCanSignEvents(session);
+  recoveryReconnect.disabled = scoreSubmitInFlight || recoveryBusy;
+  recoverySelect.disabled = scoreSubmitInFlight || recoveryBusy;
+  recoveryStatus.textContent = recoveryMessage || (scoreSubmitInFlight ? 'Submission in progress. Wait for approval or its result.' : 'These runs belong to your selected account. Reconnect if its signer is offline, then retry the selected run.');
+}
+
+recoveryOpen.addEventListener('click', () => {
+  recoveryMessage = ''; syncPersonalRecovery(); resetActiveInput();
+  recoveryDialog.showModal();
+});
+recoveryDialog.addEventListener('keydown', event => event.stopPropagation());
+recoveryDialog.addEventListener('close', () => {resetActiveInput(); markPlayerActivity();});
+document.getElementById('score-recovery-close')!.addEventListener('click', () => recoveryDialog.close());
+recoverySelect.addEventListener('change', () => {recoveryMessage = '';syncPersonalRecovery();});
+recoveryRetry.addEventListener('click', async () => {
+  if (scoreSubmitInFlight || recoveryBusy) return;
+  const session = activeNostrSession();
+  const receipt = session && pendingPersonalScores(session.pubkey).find(receipt => receipt.summary.runId === recoverySelect.value);
+  if (!receipt) return;
+  recoveryMessage = ''; recoveryBusy = true; syncPersonalRecovery();
+  try {
+    await claimAndPublishScore(receipt.summary, false);
+    recoveryMessage = pendingPersonalScores(session.pubkey).some(item => item.summary.runId === receipt.summary.runId)
+      ? (recoveryMessage || scoreStatus) : 'Published. The selected saved run has been cleared.';
+  } finally { recoveryBusy = false; syncPersonalRecovery(); }
+});
+recoveryReconnect.addEventListener('click', async () => {
+  if (scoreSubmitInFlight || recoveryBusy) return;
+  const owner = activeNostrSession();
+  if (!owner) return;
+  const generation = scoreGeneration;
+  recoveryBusy = true; recoveryMessage = 'Choose the original account in the login window.'; syncPersonalRecovery();
+  try {
+    const renewed = await window.Signet?.login?.({appName:SIGNET_APP_NAME,relayUrl:'wss://relay.trotters.cc',theme:'dark'});
+    if (generation !== scoreGeneration) return;
+    if (!renewed) {recoveryMessage = 'Reconnect cancelled. Your saved scores remain.';return;}
+    if (renewed.pubkey !== owner.pubkey || !isUsableSignetSession(renewed) || !sessionCanSignEvents(renewed)) {
+      recoveryMessage = 'Choose the original account with a working signer. Your saved scores remain.';return;
+    }
+    selectPlayerSession(renewed); recoveryMessage = 'Original account connected. Retry the selected saved run.';
+  } catch {recoveryMessage = 'Reconnect failed. Your saved scores remain; try again.';}
+  finally {recoveryBusy = false;syncPersonalRecovery();}
+});
 
 function syncSupportLink(element: Element | null, id: 'lightning' | 'geyser' | 'kofi', show: boolean, labelOverride?: string): void {
   if (!(element instanceof HTMLAnchorElement)) return;
@@ -15288,7 +15426,7 @@ if (DEBUG_EXPLOSION) {
   // Debug death with the stored guest identity when one exists, so game-over
   // surfaces (member stickers, name entry, claims) behave as in production.
   void restoreGuestSession().then(session => {
-    if (session) activePlayerSession = session;
+    if (session) selectPlayerSession(session);
     startRun();
     damageShip(true, 'debug-gameover');
   });

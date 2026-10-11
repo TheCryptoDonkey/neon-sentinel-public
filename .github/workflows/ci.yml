@@ -24,7 +24,33 @@ jobs:
         run: npm test
 
       - name: Build client
+        env:
+          NEON_SOURCE_REVISION: ${{ github.sha }}
         run: npm run build:client
 
       - name: Build server
         run: npm run build:server
+
+      - name: Install recovery browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify account-bound score recovery
+        env:
+          NEON_RECOVERY_EVIDENCE: ${{ github.workspace }}/neon-recovery-evidence.json
+        run: npm run test:score-recovery
+
+      - name: Archive checked client
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: checked-client
+          path: dist
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Archive recovery proof
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: score-recovery-proof
+          path: neon-recovery-evidence.json
+          retention-days: 14
+          if-no-files-found: error

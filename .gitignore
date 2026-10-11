@@ -41,3 +41,5 @@ npm-debug.log*
 /portrait-*.jpeg
 /portrait-*.png
 /time-*.jpeg
+
+neon-recovery-evidence.json

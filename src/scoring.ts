@@ -1,3 +1,4 @@
+import { rememberPersonalScore, pendingPersonalScores, forgetPersonalScore } from './personal-score-outbox.js';
 import { verifyEvent, type Event } from 'nostr-tools/pure';
 import { getReadRelays, getWriteRelays } from './relays.js';
 
@@ -224,13 +225,39 @@ export function verifiedSignedTemplate(value: unknown, pubkey: string, template:
   } catch { return null; }
 }
 
-export async function submitScoreClaim(
+const personalClaims = new Map<string, Promise<ClaimResult>>();
+export function submitScoreClaim(
   session: ScoreClaimSession,
   summary: RelaykeepRunSummary,
+  isCurrent: () => boolean = () => true,
+): Promise<ClaimResult> {
+  const snapshot = structuredClone(summary);
+  const key = `${session.pubkey}:${snapshot.runId}`;
+  if (snapshot.playerMode !== 'nostr') return submitScoreClaimAttempt(session, snapshot, isCurrent);
+  if (snapshot.playerPubkey !== session.pubkey) return Promise.resolve({ok:false,error:'original_account_required'});
+  const pending = personalClaims.get(key);
+  if (pending) return pending;
+  const attempt = submitScoreClaimAttempt(session, snapshot, isCurrent).finally(() => {
+    if (personalClaims.get(key) === attempt) personalClaims.delete(key);
+  });
+  personalClaims.set(key, attempt);
+  return attempt;
+}
+async function submitScoreClaimAttempt(
+  session: ScoreClaimSession,
+  summary: RelaykeepRunSummary,
+  isCurrent: () => boolean,
 ): Promise<ClaimResult> {
   const pubkey = session.pubkey;
+  const contextCurrent = isCurrent;
+  isCurrent = () => contextCurrent() && session.pubkey === pubkey;
   if (summary.playerMode === 'nostr' && (!summary.playerPubkey || summary.playerPubkey !== pubkey)) {
     return {ok:false,error:'original_account_required'};
+  }
+  if (!isCurrent()) return {ok:false,error:'signer_unavailable'};
+  if (summary.playerMode === 'nostr') {
+    if (!rememberPersonalScore(summary)) return {ok:false,error:'recovery_storage_unavailable'};
+    summary = pendingPersonalScores(pubkey).find(receipt => receipt.summary.runId === summary.runId)!.summary;
   }
   const url = `${location.origin}${CLAIM_API}`;
   const bodyJson = JSON.stringify(buildClaimInput(summary));
@@ -246,6 +273,7 @@ export async function submitScoreClaim(
     ],
   };
 
+  if (!isCurrent()) return {ok:false,error:'signer_unavailable'};
   let signedAuth: unknown;
   let signTimer: number | undefined;
   try {
@@ -261,25 +289,22 @@ export async function submitScoreClaim(
     if (signTimer !== undefined) window.clearTimeout(signTimer);
   }
 
+  if (!isCurrent()) return {ok:false,error:'signer_unavailable'};
   const signed = verifiedSignedTemplate(signedAuth, pubkey, authTemplate);
   if (!signed) return {ok:false,error:'sign_failed',detail:'original-account-template-required'};
-  const outcome = await fetchClaimWithRetry(bodyJson, `Nostr ${utf8Base64(JSON.stringify(signed))}`);
+  const outcome = await fetchClaimWithRetry(bodyJson, `Nostr ${utf8Base64(JSON.stringify(signed))}`, isCurrent);
   if (!outcome.ok) {
     return { ok: false, error: 'network_error', detail: outcome.error instanceof Error ? outcome.error.message : String(outcome.error) };
   }
   const res = outcome.res;
 
-  let data: unknown;
-  try {
-    data = await res.json();
-  } catch {
-    return { ok: false, error: 'bad_response', detail: `HTTP ${res.status}`, status: res.status };
-  }
+  const data = outcome.data;
   if (typeof data !== 'object' || data === null) {
     return { ok: false, error: 'bad_response', status: res.status };
   }
   const result = data as Record<string, unknown>;
   if (result.ok === true && typeof result.score_event_id === 'string') {
+    if (summary.playerMode === 'nostr' && (parsePublishedResult(result.published)?.ok ?? 0) > 0) forgetPersonalScore(pubkey, summary.runId);
     return {
       ok: true,
       payout_sats: typeof result.payout_sats === 'number' ? result.payout_sats : 0,
@@ -296,25 +321,30 @@ export async function submitScoreClaim(
   };
 }
 
-type ClaimFetchOutcome = { ok: true; res: Response } | { ok: false; error: unknown };
+type ClaimFetchOutcome = { ok: true; res: Response; data: unknown } | { ok: false; error: unknown };
 
-async function fetchClaimWithRetry(bodyJson: string, authHeader: string): Promise<ClaimFetchOutcome> {
+async function fetchClaimWithRetry(bodyJson: string, authHeader: string, isCurrent: () => boolean): Promise<ClaimFetchOutcome> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= CLAIM_MAX_ATTEMPTS; attempt++) {
+    if (!isCurrent()) return {ok:false,error:new Error('signer-revoked')};
     try {
-      const res = await fetch(CLAIM_API, {
+      const {res, data} = await claimDeadline(async signal => {
+        const res = await fetch(CLAIM_API, {
         method: 'POST',
         headers: {
           authorization: authHeader,
           'content-type': 'application/json',
         },
-        body: bodyJson,
+        body: bodyJson, signal,
+        });
+        const data: unknown = await res.json().catch(() => null);
+        return {res, data};
       });
       if (res.status >= 500 && attempt < CLAIM_MAX_ATTEMPTS) {
         await delay(RETRY_DELAY_MS);
         continue;
       }
-      return { ok: true, res };
+      return { ok: true, res, data };
     } catch (err) {
       lastError = err;
       if (attempt < CLAIM_MAX_ATTEMPTS) {
@@ -323,6 +353,16 @@ async function fetchClaimWithRetry(bodyJson: string, authHeader: string): Promis
     }
   }
   return { ok: false, error: lastError };
+}
+
+async function claimDeadline<T>(operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  let timer: number | undefined;
+  try {
+    return await Promise.race([operation(controller.signal), new Promise<never>((_, reject) => {
+      timer = window.setTimeout(() => {controller.abort();reject(new Error('claim-timeout'));}, 15_000);
+    })]);
+  } finally { if (timer !== undefined) window.clearTimeout(timer); }
 }
 
 function delay(ms: number): Promise<void> {
