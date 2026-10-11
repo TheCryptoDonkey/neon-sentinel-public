@@ -31,6 +31,24 @@ jobs:
       - name: Build server
         run: npm run build:server
 
+      - name: Verify durable delayed score acceptance
+        run: npm run test:claim-recovery
+
+      - name: Fingerprint checked API
+        run: |
+          node --input-type=module -e "import {readFileSync,writeFileSync} from 'node:fs'; import {createHash} from 'node:crypto'; const path='server-dist/index.js'; writeFileSync('neon-api-manifest.json',JSON.stringify({revision:process.env.GITHUB_SHA,path,sha256:createHash('sha256').update(readFileSync(path)).digest('hex')},null,2)+'\n');"
+
+      - name: Archive checked API
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: checked-api
+          path: |
+            server-dist/index.js
+            server-dist/index.js.map
+            neon-api-manifest.json
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Install recovery browser
         run: npx playwright install --with-deps chromium
 

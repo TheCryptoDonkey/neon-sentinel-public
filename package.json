@@ -15,7 +15,8 @@
     "sync:sdk": "node tools/sync-signet-sdk.mjs",
     "prebuild:client": "node tools/sync-signet-sdk.mjs --check",
     "test:score-recovery": "node tools/score-recovery-smoke.mjs",
-    "test:signet-keyboard": "node tools/signet-keyboard-smoke.mjs"
+    "test:signet-keyboard": "node tools/signet-keyboard-smoke.mjs",
+    "test:claim-recovery": "node tools/claim-recovery-smoke.mjs"
   },
   "dependencies": {
     "@types/three": "^0.184.1",

@@ -86,3 +86,21 @@ publication after that window. Persistent receipts need compatible delayed
 acceptance, durable idempotency and explicit owner-controlled handling of
 permanently rejected receipts. Original timestamps must stay unchanged. No API
 process, configuration or server code was changed by the client deployments.
+
+A server candidate now accepts delayed runs with fresh NIP-98, serializes
+acceptance, and durably stores the canonical signed event before relay writes.
+Account/run ID is permanent; changing an accepted payload returns 409. An
+unconfirmed relay write retries the same stored event after restart. Corrupt
+history fails closed. Legacy unconfirmed rows without a saved event return
+`recovery_event_missing` rather than fabricating a replacement. Original run
+timestamps remain in the journal and score content.
+
+The private compiled-API gate passes a seven-day-old run, no-ack persistence,
+process restart and same-event publication, duplicate and concurrent retry,
+changed-run rejection, future clock rejection, stale NIP-98 rejection, legacy
+missing-event handling and corrupt-history refusal. It uses disposable keys
+and simulated relay acknowledgements; no external writes or live provider.
+All 101 units and both typechecks pass. CI now runs this gate and archives the
+checked API with a source revision and SHA-256 manifest. This candidate is not
+yet deployed; the current production ten-minute limit remains until deployment
+and verification. See [API fixture proof](evidence/neon-api-delayed-recovery-candidate.json).

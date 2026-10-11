@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { appendFile, mkdir, readFile } from 'node:fs/promises';
+import { open, mkdir, readFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
@@ -41,7 +41,8 @@ const CLAIM_LOG = process.env.NEON_SENTINEL_CLAIM_LOG ?? `${DATA_DIR}/claims.jso
 const PUBLISH_ENABLED = process.env.NEON_SENTINEL_PUBLISH !== '0';
 const DEFAULT_GAME_NPUB = 'npub1xuq53wm49lh820yd6sm82t5qrupfz0du0trrxzpg6y742sxyegssntwz40';
 const EXPECTED_GAME_NPUB = process.env.NEON_SENTINEL_GAME_NPUB ?? DEFAULT_GAME_NPUB;
-const STALE_RUN_MS = 10 * 60 * 1000;
+// Saved scores may be approved days later. NIP-98 must still be fresh.
+// Durable account/run deduplication, not run age, prevents repeat acceptance.
 const FUTURE_SLACK_MS = 60 * 1000;
 const MAX_DURATION_MS = 6 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 96 * 1024;
@@ -57,7 +58,6 @@ const PROFILE_IMAGE_CACHE_MAX_ENTRIES = 400;
 // recover.
 const PROFILE_IMAGE_FAILURE_CACHE_MS = 5 * 60 * 1000;
 const MAX_PROFILE_IMAGE_REDIRECTS = 3;
-const CLAIM_DEDUP_TTL_MS = STALE_RUN_MS * 3;
 const RATE_LIMIT_MAX_TRACKED_IPS = 10_000;
 const CLAIM_RATE_LIMIT = { limit: 6, windowMs: 60_000 };
 const PROFILE_IMAGE_RATE_LIMIT = { limit: 60, windowMs: 60_000 };
@@ -103,13 +103,15 @@ interface StoredClaim {
   published: { ok: number; total: number };
   accepted_at: string;
   finished_at: number;
+  claim?: ClaimInput;
+  event?: VerifiedEvent;
 }
 
 const gameSecret = loadGameSecret();
 const expectedGamePubkey = decodeNpub(EXPECTED_GAME_NPUB);
 const gamePubkey = resolveGamePubkey(gameSecret);
 const claims = await loadClaims();
-pruneStaleClaims();
+
 const profileImageCache = new Map<string, { type: string; body: Buffer; expiresAt: number }>();
 const profileImageFailureCache = new Map<string, number>();
 const claimRateLimiter = createRateLimiter(CLAIM_RATE_LIMIT.limit, CLAIM_RATE_LIMIT.windowMs);
@@ -233,45 +235,49 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   }
 
   const claim = parsed.claim;
-  const key = `${auth.pubkey}:${claim.run_id}:${claim.started_at}:${claim.finished_at}`;
-  const replay = claims.get(key);
-  if (replay) {
+  // Serialize acceptance, including durable storage and relay publication. Two
+  // simultaneous approvals cannot create different events for one run.
+  await withClaimLock(async () => {
+    const key = `${auth.pubkey}:${claim.run_id}`;
+    const replay = claims.get(key);
+    if (replay?.claim && canonicalClaim(replay.claim) !== canonicalClaim(claim)) {
+      sendJson(res, 409, { ok: false, error: 'run_conflict' }, req);
+      return;
+    }
+    if (replay && replay.published.ok === 0 && !replay.event) {
+      // Older history saved only the event ID. Do not fabricate a different
+      // signed event or claim that its publication was confirmed.
+      sendJson(res, 409, { ok: false, error: 'recovery_event_missing' }, req);
+      return;
+    }
+    let stored = replay;
+    if (!stored) {
+      const payoutSats = clampPayout(claim);
+      const handle = await sixHundredHandleFor(auth.pubkey);
+      const event = finalizeEvent(buildScoreEvent(claim, auth.pubkey, payoutSats, handle), gameSecret!);
+      stored = {
+        key, pubkey: auth.pubkey, run_id: claim.run_id, score_event_id: event.id,
+        payout_sats: payoutSats, published: { ok: 0, total: WRITE_RELAYS.length },
+        accepted_at: new Date().toISOString(), finished_at: claim.finished_at,
+        claim: structuredClone(claim), event,
+      };
+      // Persist the signed event before external publication. A crash or lost
+      // response retries the exact event rather than generating a new one.
+      await appendClaim(stored, claim);
+      claims.set(key, stored);
+    }
+    if (stored.published.ok === 0 && stored.event) {
+      const published = await publishSignedScore(stored.event);
+      const updated = { ...stored, published };
+      await appendClaim(updated, stored.claim ?? claim);
+      claims.set(key, updated);
+      stored = updated;
+    }
     sendJson(res, 200, {
-      ok: true,
-      payout_sats: replay.payout_sats,
-      score_event_id: replay.score_event_id,
-      status: 'accepted',
-      published: replay.published,
+      ok: true, payout_sats: stored.payout_sats, score_event_id: stored.score_event_id,
+      status: stored.published.ok > 0 ? 'published' : 'accepted', published: stored.published,
     }, req);
-    return;
-  }
-
-  const payoutSats = clampPayout(claim);
-  const sixHundredHandle = await sixHundredHandleFor(auth.pubkey);
-  const scoreTemplate = buildScoreEvent(claim, auth.pubkey, payoutSats, sixHundredHandle);
-  const signed = finalizeEvent(scoreTemplate, gameSecret);
-  const published = await publishSignedScore(signed);
-  const stored: StoredClaim = {
-    key,
-    pubkey: auth.pubkey,
-    run_id: claim.run_id,
-    score_event_id: signed.id,
-    payout_sats: payoutSats,
-    published,
-    accepted_at: new Date().toISOString(),
-    finished_at: claim.finished_at,
-  };
-  claims.set(key, stored);
-  pruneStaleClaims();
-  await appendClaim(stored, claim);
-
-  sendJson(res, 200, {
-    ok: true,
-    payout_sats: payoutSats,
-    score_event_id: signed.id,
-    status: published.ok > 0 ? 'published' : 'accepted',
-    published,
-  }, req);
+  });
 }
 
 async function handleProfileImage(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -655,7 +661,6 @@ function parseClaim(body: unknown): { ok: true; claim: ClaimInput } | { ok: fals
   if (claim.started_at >= claim.finished_at || claim.finished_at > now + FUTURE_SLACK_MS) {
     return { ok: false, status: 422, error: 'invalid_run_clock' };
   }
-  if (now - claim.finished_at > STALE_RUN_MS) return { ok: false, status: 422, error: 'stale_run' };
   const clockSkew = Math.abs(claim.duration_ms - (claim.finished_at - claim.started_at));
   if (clockSkew > 5000) return { ok: false, status: 422, error: 'duration_clock_mismatch' };
   const durationSec = claim.duration_ms / 1000;
@@ -766,6 +771,8 @@ function buildScoreEvent(claim: ClaimInput, playerPubkey: string, payoutSats: nu
       game: GAME_ID,
       run_id: claim.run_id,
       player: playerPubkey,
+      started_at: claim.started_at,
+      finished_at: claim.finished_at,
       score: claim.score,
       wave: claim.wave,
       credits: claim.credits,
@@ -845,50 +852,62 @@ function clampPayout(claim: ClaimInput): number {
   return 0;
 }
 
+let claimTail: Promise<void> = Promise.resolve();
+async function withClaimLock(action: () => Promise<void>): Promise<void> {
+  const previous = claimTail;
+  let release!: () => void;
+  claimTail = new Promise<void>(resolve => { release = resolve; });
+  await previous;
+  try { await action(); } finally { release(); }
+}
+
+function canonicalClaim(claim: ClaimInput): string {
+  function sorted(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(sorted);
+    if (value && typeof value === 'object') return Object.fromEntries(
+      Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, sorted(item)]));
+    return value;
+  }
+  return JSON.stringify(sorted(claim));
+}
+
 async function appendClaim(stored: StoredClaim, claim: ClaimInput): Promise<void> {
   await mkdir(dirname(CLAIM_LOG), { recursive: true });
-  await appendFile(CLAIM_LOG, `${JSON.stringify({ ...stored, claim })}\n`, { encoding: 'utf8' });
+  const file = await open(CLAIM_LOG, 'a', 0o600);
+  try {
+    await file.writeFile(`${JSON.stringify({ ...stored, claim })}\n`, { encoding: 'utf8' });
+    await file.sync();
+  } finally { await file.close(); }
 }
 
 async function loadClaims(): Promise<Map<string, StoredClaim>> {
   const map = new Map<string, StoredClaim>();
-  try {
-    const raw = await readFile(CLAIM_LOG, 'utf8');
-    for (const line of raw.split('\n')) {
-      if (!line.trim()) continue;
-      try {
-        const parsed = JSON.parse(line) as Partial<StoredClaim>;
-        if (typeof parsed.key === 'string' && typeof parsed.score_event_id === 'string') {
-          const acceptedAt = String(parsed.accepted_at ?? '');
-          map.set(parsed.key, {
-            key: parsed.key,
-            pubkey: String(parsed.pubkey ?? ''),
-            run_id: String(parsed.run_id ?? ''),
-            score_event_id: parsed.score_event_id,
-            payout_sats: Number(parsed.payout_sats ?? 0),
-            published: isPublished(parsed.published) ? parsed.published : { ok: 0, total: WRITE_RELAYS.length },
-            accepted_at: acceptedAt,
-            // Older log lines predate finished_at; accepted_at lands close enough in
-            // time to use as a pruning proxy (claims are only ever accepted shortly
-            // after finished_at, since parseClaim rejects stale runs).
-            finished_at: typeof parsed.finished_at === 'number' ? parsed.finished_at : Date.parse(acceptedAt) || 0,
-          });
-        }
-      } catch {
-        // Ignore malformed audit rows; future writes remain append-only.
-      }
+  let raw: string;
+  try { raw = await readFile(CLAIM_LOG, 'utf8'); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return map;
+    throw error;
+  }
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue;
+    // Fail closed on corrupt durable history rather than accepting duplicates.
+    const parsed = JSON.parse(line) as StoredClaim;
+    if (typeof parsed.pubkey !== 'string' || typeof parsed.run_id !== 'string' ||
+        typeof parsed.score_event_id !== 'string' || !isPublished(parsed.published)) {
+      throw new Error('invalid_claim_history');
     }
-  } catch {
-    // The first deploy starts with no claim log.
+    if (parsed.event && (!verifyEvent(parsed.event) || parsed.event.id !== parsed.score_event_id ||
+        parsed.event.pubkey !== gamePubkey || !parsed.event.tags.some(tag => tag[0] === 'p' && tag[1] === parsed.pubkey))) {
+      throw new Error('invalid_claim_history_event');
+    }
+    const key = `${parsed.pubkey}:${parsed.run_id}`;
+    const prior = map.get(key);
+    // Legacy logs may contain several timestamp-based rows for a run. Preserve
+    // the first accepted identity and never silently replace it with another.
+    if (prior && prior.score_event_id !== parsed.score_event_id) continue;
+    map.set(key, { ...parsed, key });
   }
   return map;
-}
-
-function pruneStaleClaims(): void {
-  const cutoff = Date.now() - CLAIM_DEDUP_TTL_MS;
-  for (const [key, stored] of claims) {
-    if (stored.finished_at < cutoff) claims.delete(key);
-  }
 }
 
 function isPublished(value: unknown): value is { ok: number; total: number } {
