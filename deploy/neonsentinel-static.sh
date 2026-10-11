@@ -7,14 +7,14 @@ set -euo pipefail
 # and flips /opt/neonsentinel/current. It does not edit existing game roots.
 #
 # Caddy setup is opt-in:
-#   APPLY_CADDY=1 VPS_HOST=95.217.39.110 ./deploy/neonsentinel-static.sh
+#   APPLY_CADDY=1 ./deploy/neonsentinel-static.sh
 #
 # Without APPLY_CADDY=1, the script deploys the files and prints the Caddy
 # validation command needed on the host.
 
-VPS_HOST="${VPS_HOST:-95.217.39.110}"
+VPS_HOST="${VPS_HOST:-62.238.98.53}"
 VPS_USER="${VPS_USER:-deploy}"
-SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_rsa_thecryptodonkey}"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519}"
 REMOTE_BASE="${REMOTE_BASE:-/opt/neonsentinel}"
 SITE_HOST="${SITE_HOST:-neonsentinel.com}"
 APPLY_CADDY="${APPLY_CADDY:-0}"
@@ -30,7 +30,7 @@ echo "Host: $VPS_USER@$VPS_HOST"
 echo "Remote: $REMOTE_BASE/releases/$RELEASE_ID"
 
 echo "[1/7] Building local dist and claim API..."
-npm run build
+NEON_SOURCE_REVISION="$(git rev-parse HEAD)" npm run build
 
 echo "[2/7] Read-only host preflight..."
 "${SSH_CMD[@]}" "
@@ -68,7 +68,7 @@ rsync -az --delete --timeout=60 ${server_link[@]+"${server_link[@]}"} -e "$RSYNC
 
 echo "[5/7] Claim API service..."
 if [[ "$APPLY_API" == "1" ]]; then
-  tmp_service="/tmp/neonsentinel-api.service.$RELEASE_ID"
+  tmp_service="$REMOTE_BASE/releases/$RELEASE_ID/neonsentinel-api.service"
   rsync -az -e "$RSYNC_SSH" deploy/neonsentinel-api.service "$VPS_USER@$VPS_HOST:$tmp_service"
   "${SSH_CMD[@]}" "
     set -e
@@ -101,12 +101,15 @@ fi
 
 echo "[6/7] Caddy handling..."
 if [[ "$APPLY_CADDY" == "1" ]]; then
-  tmp_remote="/tmp/neonsentinel.Caddyfile.$RELEASE_ID"
+  tmp_remote="$REMOTE_BASE/releases/$RELEASE_ID/neonsentinel.Caddyfile"
   rsync -az -e "$RSYNC_SSH" deploy/neonsentinel.Caddyfile "$VPS_USER@$VPS_HOST:$tmp_remote"
   "${SSH_CMD[@]}" "
     set -e
     sudo mkdir -p /etc/caddy/conf.d
     sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak.neonsentinel.$RELEASE_ID
+    if sudo test -f /etc/caddy/conf.d/neonsentinel.Caddyfile; then
+      sudo cp /etc/caddy/conf.d/neonsentinel.Caddyfile /etc/caddy/conf.d/neonsentinel.Caddyfile.bak.$RELEASE_ID
+    fi
     sudo mv '$tmp_remote' /etc/caddy/conf.d/neonsentinel.Caddyfile
     if ! sudo grep -q 'import /etc/caddy/conf.d/\\*.Caddyfile' /etc/caddy/Caddyfile; then
       printf '\\nimport /etc/caddy/conf.d/*.Caddyfile\\n' | sudo tee -a /etc/caddy/Caddyfile >/dev/null

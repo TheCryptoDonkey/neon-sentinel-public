@@ -2,12 +2,11 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { inflateSync } from 'node:zlib';
 
 const chrome = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const baseUrl = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:5190/';
-const outDir = process.env.SMOKE_OUT_DIR || join(tmpdir(), `neon-sentinel-smoke-${Date.now()}`);
+const outDir = process.env.SMOKE_OUT_DIR || join(process.cwd(), '.playwright-mcp', `visual-smoke-${Date.now()}`);
 const localTarget = /^(https?:\/\/)?(127\.0\.0\.1|localhost)(:|\/|$)/.test(baseUrl);
 const debug = process.env.SMOKE_DEBUG === '1';
 
@@ -186,7 +185,7 @@ process.exit(0);
 async function captureScenario({ scenario, file, url, timeoutMs }) {
   const [width, height] = scenario.size.split(',').map(Number);
   const port = 9300 + Math.floor(Math.random() * 1200);
-  const userDataDir = join(tmpdir(), `neon-sentinel-chrome-${scenario.name}-${Date.now()}`);
+  const userDataDir = join(outDir, `chrome-${scenario.name}-${Date.now()}`);
   const args = [
     '--headless',
     '--disable-gpu',

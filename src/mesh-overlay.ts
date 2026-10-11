@@ -1,4 +1,9 @@
 import * as THREE from 'three';
+import { contactGeometry, contactGeometryDiagnostics } from './authored-contact-art.js';
+import { contactRotation } from './contact-art.js';
+import { getFlightArt, getFlightBake, flightArtDiagnostics, prepareFlightEnvironment, requestFlightArt } from './authored-flight-art.js';
+import { cakeSliceIndex, sculptedImage, type SculptedArt } from './authored-sprites.js';
+import { drawPickupFrame, drawValuePickupFallback } from './pickup-presentation.js';
 import { profilePictureCandidates } from './profiles.js';
 import { drawTroll } from './sprite-art.js';
 import {
@@ -42,6 +47,8 @@ export interface MeshEnemy {
   sizeScale?: number;
   /** 0-1: how deep into its last-quarter-health "about to pop" telegraph window a troll is. */
   popFlash?: number;
+  hp: number;
+  maxHp: number;
   stolenAvatarUrl?: string;
   x: number;
   y: number;
@@ -98,6 +105,8 @@ export interface MeshFrame {
   cameraX: number;
   dpr: number;
   t: number;
+  reducedEffects: boolean;
+  lowCost: boolean;
   ship: {
     x: number;
     y: number;
@@ -156,6 +165,7 @@ interface AvatarEntry {
   material: THREE.MeshStandardMaterial | null;
   candidates: string[];
   index: number;
+  evicted?: boolean;
 }
 
 interface RelayColumnMood {
@@ -166,6 +176,8 @@ interface RelayColumnMood {
 }
 
 const avatarCache = new Map<string, AvatarEntry>();
+const AVATAR_CACHE_LIMIT = 64;
+const activeAvatarKeys = new Set<string>();
 
 const shipBodyGeo = makeExtrudedShape([
   [58, 0],
@@ -286,7 +298,6 @@ const sybilOrbGeo = new THREE.IcosahedronGeometry(9, 0);
 const carrierDeckGeo = new THREE.BoxGeometry(132, 18, 20);
 const carrierHangarGeo = new THREE.BoxGeometry(68, 8, 8);
 const carrierTurretGeo = new THREE.ConeGeometry(7, 22, 16);
-const citizenGeo = new THREE.SphereGeometry(21, 36, 22);
 const citizenRingGeo = new THREE.TorusGeometry(23, 1.5, 8, 52);
 const beaconRingGeo = new THREE.TorusGeometry(43, 1.8, 8, 64);
 const enemyBeamGeo = new THREE.CylinderGeometry(4, 11, 54, 18, 1, true);
@@ -468,12 +479,32 @@ const sharedGeometries = new Set<THREE.BufferGeometry>([
   shipBodyGeo, shipWingGeo, shipLowerWingGeo, shipEngineGeo, shipFuselageGeo, shipNoseGeo, shipPodGeo, shipFinGeo,
   shipCanopyGeo, abductorHullGeo, spoofHullGeo, jammerWingGeo, enemyRingGeo, enemyPlateGeo, enemyLightGeo,
   hunterBladeGeo, jammerCoreGeo, enemyPodGeo, microPodGeo, contactBaseGeo, contactTetherGeo, contactHaloGeo,
-  enemySpikeGeo, detailStrutGeo, carrierGeo, carrierDeckGeo, carrierHangarGeo, carrierTurretGeo, citizenGeo,
+  enemySpikeGeo, detailStrutGeo, carrierGeo, carrierDeckGeo, carrierHangarGeo, carrierTurretGeo,
   citizenRingGeo, beaconRingGeo, enemyBeamGeo, glowPlaneGeo, laserGeo, captureBeamGeo, speedStreakGeo,
   nebulaPlaneGeo, asteroidGeo, shotHeadGeo, shotRingGeo, shotBoltGeo, towerMastGeo, towerRingGeo, towerBeamGeo, groundPlateGeo,
   habitatPadGeo, habitatVaultGeo, habitatPylonGeo, shipBodyEdges, shipWingEdges, shipLowerWingEdges,
   abductorHullEdges, spoofHullEdges, hunterEdges, jammerEdges, carrierEdges, beaconGeo, pickupBarGeo,
 ]);
+const flightBakePlane = new THREE.PlaneGeometry(1, 1);
+sharedGeometries.add(flightBakePlane);
+let flightShipPath = 'none';
+let flightBossPath = 'none';
+let alienPaths: Record<string, string> = {};
+let pickupPaths: Record<string, string> = {};
+const sculptedBillboards = new Map<string, THREE.SpriteMaterial>();
+function sculptedBillboard(kind: SculptedArt, spriteIndex = 0): THREE.SpriteMaterial | undefined {
+  const key = kind === 'cake-piece' ? `${kind}:${cakeSliceIndex(spriteIndex)}` : kind;
+  const existing = sculptedBillboards.get(key);
+  if (existing) return existing;
+  const image = sculptedImage(kind,spriteIndex);
+  if (!image) return undefined;
+  const texture = new THREE.Texture(image);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  const material = new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false,alphaTest:0.02,toneMapped:false});
+  sculptedBillboards.set(key,material);
+  return material;
+}
 
 function disposeIfOwned(obj: THREE.Object3D): void {
   const withMaterial = obj as Partial<THREE.Mesh>;
@@ -590,7 +621,13 @@ function getIndexedGroup(arr: THREE.Group[], index: number, parent: THREE.Object
 
 function hideMapEntriesExcept(map: Map<number, THREE.Group>, keep: ReadonlySet<number>): void {
   for (const [key, group] of map) {
-    if (!keep.has(key)) group.visible = false;
+    if (!keep.has(key)) {
+      // IDs are random across waves/runs. Retain only current actors, rather
+      // than every ship ever encountered. Child geometry/materials are shared.
+      group.removeFromParent();
+      childPools.delete(group);
+      map.delete(key);
+    }
   }
 }
 
@@ -739,6 +776,7 @@ function handleContextLost(event: Event): void {
 }
 
 function handleContextRestored(): void {
+  if (renderer) prepareFlightEnvironment(renderer, true);
   contextLost = false;
   lastViewW = -1;
   lastViewH = -1;
@@ -772,6 +810,7 @@ export async function ensureMeshOverlay(options?: MeshOverlayInitOptions): Promi
     // pipeline off; if real shadows are ever wanted, receivers and the key
     // light's shadow camera bounds must be wired up first.
     renderer.shadowMap.enabled = false;
+    prepareFlightEnvironment(renderer);
     overlayCanvas.addEventListener('webglcontextlost', handleContextLost, false);
     overlayCanvas.addEventListener('webglcontextrestored', handleContextRestored, false);
 
@@ -798,6 +837,7 @@ export async function ensureMeshOverlay(options?: MeshOverlayInitOptions): Promi
     camera.position.set(640, 360, CAMERA_Z);
     camera.lookAt(640, 360, 0);
     ready = true;
+    requestFlightArt();
     status('3D cinema mesh ready');
     return true;
   } catch (err) {
@@ -809,7 +849,31 @@ export async function ensureMeshOverlay(options?: MeshOverlayInitOptions): Promi
 }
 
 export function isMeshOverlayReady(): boolean {
-  return ready;
+  return ready && !contextLost;
+}
+
+export function getMeshDiagnostics() {
+  return {
+    hull: flightArtDiagnostics().interceptor.state,
+    hullBatches: getFlightArt('interceptor').length,
+    flightArt: flightArtDiagnostics(),
+    flightShipPath,
+    flightShipClass: shipGroup?.userData.shipClass ?? null,
+    flightBossPath,
+    alienPaths,
+    pickupPaths,
+    sculptedBillboards: sculptedBillboards.size,
+    billboardArt: Object.fromEntries([...sculptedBillboards].map(([key,mat]) => [key,(mat.map?.image as HTMLImageElement | undefined)?.src])),
+    enemyGroups: enemyGroups.size,
+    citizenGroups: citizenGroups.size,
+    contactArt: contactGeometryDiagnostics(),
+    avatarTextures: avatarCache.size,
+    avatarTextureLimit: AVATAR_CACHE_LIMIT,
+    contactSkins: [...citizenGroups].filter(([,g])=>g.visible).map(([id,g])=>({id,skin:g.userData.contactSkin,shape:g.userData.contactShape,rotation:g.rotation.y})),
+    geometries: renderer?.info.memory.geometries ?? 0,
+    textures: renderer?.info.memory.textures ?? 0,
+    drawCalls: renderer?.info.render.calls ?? 0,
+  };
 }
 
 export function getMeshCanvas(): HTMLCanvasElement | null {
@@ -861,7 +925,15 @@ function hideGameplayGroups(): void {
 }
 
 export function renderMeshOverlay(frame: MeshFrame): void {
+  activeAvatarKeys.clear();
+  for (const url of [...frame.citizens.map(c=>c.avatarUrl),...frame.enemies.map(e=>e.stolenAvatarUrl)]) {
+    if (url) activeAvatarKeys.add(profilePictureCandidates(url).join('|'));
+  }
   if (!ready || !renderer || !scene || !camera || !root || contextLost) return;
+  flightShipPath = 'none';
+  flightBossPath = 'none';
+  alienPaths = {};
+  pickupPaths = {};
   const sceneRoot = root;
 
   if (frame.dpr !== lastDpr) {
@@ -875,10 +947,10 @@ export function renderMeshOverlay(frame: MeshFrame): void {
   }
   camera.aspect = frame.viewW / frame.viewH;
   camera.fov = calcFov(frame.viewH);
-  const swayX = clamp(frame.ship.vx / 1200, -1, 1) * 8 + Math.sin(frame.t * 1.3) * 2.2;
-  const swayY = clamp(frame.ship.vy / 520, -1, 1) * 5 + Math.cos(frame.t * 1.1) * 1.6;
+  const swayX = frame.reducedEffects ? 0 : clamp(frame.ship.vx / 1200, -1, 1) * 8 + Math.sin(frame.t * 1.3) * 2.2;
+  const swayY = frame.reducedEffects ? 0 : clamp(frame.ship.vy / 520, -1, 1) * 5 + Math.cos(frame.t * 1.1) * 1.6;
   camera.position.set(frame.viewW / 2 + swayX, frame.viewH / 2 + swayY, CAMERA_Z);
-  camera.up.set(Math.sin(frame.t * 0.5) * 0.01, 1, 0);
+  camera.up.set(frame.reducedEffects ? 0 : Math.sin(frame.t * 0.5) * 0.01, 1, 0);
   camera.lookAt(frame.viewW / 2, frame.viewH / 2, 0);
   camera.updateProjectionMatrix();
 
@@ -892,6 +964,10 @@ export function renderMeshOverlay(frame: MeshFrame): void {
     hideIndexedFrom(shotExtraGroups, frame.enemyShots.length);
   } else {
     hideGameplayGroups();
+    usedCitizenIds.clear();
+    usedEnemyIds.clear();
+    for (const map of [citizenGroups, citizenExtraGroups, habitatGroups, habitatExtraGroups]) hideMapEntriesExcept(map, usedCitizenIds);
+    hideMapEntriesExcept(enemyGroups, usedEnemyIds);
   }
   addShip(sceneRoot, frame);
   if (frame.phase !== 'title') {
@@ -1137,7 +1213,7 @@ function addSpeedStreaks(rootGroup: THREE.Group, frame: MeshFrame): void {
   const group = speedStreaksGroup;
   group.visible = true;
   const speed = Math.abs(frame.ship.vx);
-  if (speed < 860) {
+  if (speed < 860 || frame.reducedEffects) {
     group.visible = false;
     return;
   }
@@ -1480,6 +1556,7 @@ function addShip(rootGroup: THREE.Group, frame: MeshFrame): void {
   const x = sx(frame.ship.x, frame);
   const y = sy(frame.ship.y, frame);
   const shipClass = frame.ship.shipClass;
+  shipGroup.userData.shipClass = shipClass;
   const interceptor = shipClass === 'interceptor';
   const guardian = shipClass === 'guardian';
   const heavy = shipClass === 'heavy';
@@ -1516,13 +1593,13 @@ function addShip(rootGroup: THREE.Group, frame: MeshFrame): void {
   const lengthScale = interceptor ? 1.12 : heavy ? 1.05 : 1;
   const widthScale = interceptor ? 0.76 : heavy ? 1.2 : 1;
   group.scale.set(frame.ship.dir * baseScale * lengthScale, baseScale * widthScale, baseScale);
-  group.rotation.x = Math.sin(frame.t * 2.1) * 0.07 + clamp(frame.ship.vy / 1800, -0.16, 0.16);
-  group.rotation.y = Math.sin(frame.t * 2.7) * 0.22 + frame.ship.dir * clamp(frame.ship.vx / 9000, -0.1, 0.1);
+  group.rotation.x = (frame.reducedEffects ? 0 : Math.sin(frame.t * 2.1) * 0.07) + clamp(frame.ship.vy / 1800, -0.16, 0.16);
+  group.rotation.y = (frame.reducedEffects ? 0 : Math.sin(frame.t * 2.7) * 0.22) + frame.ship.dir * clamp(frame.ship.vx / 9000, -0.1, 0.1);
   group.rotation.z = clamp(frame.ship.vy / 660, -0.24, 0.24);
   const thrust = clamp(frame.ship.speed / 1150, 0, 1);
   const turn = clamp(frame.ship.turnCue, 0, 1);
   const heat = clamp(frame.ship.heat, 0, 1);
-  const pulse = Math.sin(frame.t * 34) * 0.5 + 0.5;
+  const pulse = frame.reducedEffects ? 0.5 : Math.sin(frame.t * 34) * 0.5 + 0.5;
 
   syncSpriteVariant(shipAuraMat, primaryGlow, 0.22 + thrust * 0.08 + turn * 0.08);
   const aura = extraPool.sprite('aura', shipAuraMat);
@@ -1533,6 +1610,38 @@ function addShip(rootGroup: THREE.Group, frame: MeshFrame): void {
   const floorShadow = extraPool.sprite('floor-shadow', shipFloorShadowMat);
   floorShadow.position.set(x, sy(terrainY(frame.ship.x) - 10, frame), 24);
   floorShadow.scale.set(116 + thrust * 66, 20 + thrust * 8, 1);
+
+  const authored = getFlightArt(shipClass);
+  const baked = getFlightBake(shipClass);
+  if (authored.length || baked) {
+    // Complete class-specific model; none of the old body, canopy, wing or
+    // outline primitives remain underneath it. Five persistent draw batches.
+    group.scale.set(frame.ship.dir * baseScale, baseScale, baseScale);
+    if (baked && (frame.lowCost || !authored.length)) {
+      flightShipPath = 'baked';
+      const plane = pool.mesh(`flight-bake:${shipClass}`, flightBakePlane, baked);
+      const image = baked.map!.image as { width:number; height:number };
+      plane.scale.set(190, 190 * image.height / image.width, 1);
+      plane.position.z = 10;
+    } else {
+      flightShipPath = 'mesh';
+      for (const part of authored) {
+        const mesh = pool.mesh(`flight:${shipClass}:${part.surface}`, part.geometry, part.material);
+        mesh.position.z = 0;
+        mesh.scale.setScalar(1);
+      }
+    }
+    aura.scale.multiplyScalar(0.58);
+    for (const side of [-1, 1] as const) {
+      const engineY = side * (heavy ? 31 : guardian ? 27 : 22);
+      addSpriteGlow(pool, `drive:${side}`, primaryGlow, -78 - thrust * 16, engineY, -1,
+        18 + thrust * 90, 9 + thrust * 7);
+    }
+    if (heat > 0.05) addSpriteGlow(pool, 'weapon-heat', secondaryGlow, heavy ? 61 : 48, 0, 8, 14 + heat * 18, 8 + heat * 9);
+    if (turn > 0.02) addSpriteGlow(pool, 'turn-drive', primaryGlow, -59, 0, -3, 28 + turn * 35, 12 + turn * 8);
+    return;
+  }
+  flightShipPath = 'procedural';
 
   const shadowBody = pool.mesh('shadow-body', shipBodyGeo, darkMat);
   shadowBody.position.z = -3;
@@ -1547,7 +1656,6 @@ function addShip(rootGroup: THREE.Group, frame: MeshFrame): void {
   const shell = pool.mesh('shell', shipBodyGeo, shipMat);
   shell.position.z = 3;
   shell.scale.set(interceptor ? 0.98 : heavy ? 1.08 : 0.92, interceptor ? 0.58 : heavy ? 1.12 : 0.82, heavy ? 1.08 : 0.92);
-  shell.castShadow = true;
   addLine(pool, 'body-edges', shipBodyEdges, lineMats.ship, 9.5);
 
   const nose = pool.mesh('nose', shipNoseGeo, accentMat);
@@ -1629,7 +1737,7 @@ function addShip(rootGroup: THREE.Group, frame: MeshFrame): void {
   }
   if (heat > 0.05) addSpriteGlow(pool, 'heat-glow', secondaryGlow, 62, 0, 9, 30 + heat * 48, 18 + heat * 26);
   const exhaustStreak = clamp((frame.ship.speed - 430) / 680, 0, 1);
-  if (exhaustStreak > 0.08) {
+  if (exhaustStreak > 0.08 && !frame.reducedEffects) {
     const count = interceptor ? 4 : exhaustStreak > 0.68 ? 3 : 2;
     for (let i = 0; i < count; i += 1) {
       const trail = pool.mesh(`exhaust:${i}`, speedStreakGeo, i % 2 === 0 ? mats.streakAmber : mats.streakCyan);
@@ -1708,8 +1816,9 @@ function addCitizen(rootGroup: THREE.Group, frame: MeshFrame, citizen: MeshCitiz
   const extraPool = childPool(extraGroup);
   extraPool.beginEntity();
   group.position.set(x, y, 66);
-  group.rotation.y = frame.t * (1.55 + citizen.id * 0.015) + citizen.id;
-  group.rotation.x = Math.sin(frame.t * 1.8 + citizen.id) * 0.16;
+  // The actual textured body rotates through a complete turn.
+  group.rotation.y = contactRotation(frame.t,citizen.id,frame.reducedEffects);
+  group.rotation.x = frame.reducedEffects ? 0 : Math.sin(frame.t * 1.1 + citizen.id) * .1;
   group.scale.setScalar((dangerous ? 1.08 : targeted ? 0.96 + citizen.capture * 0.11 : 0.9) * frame.tuning.contactScale);
 
   if (waiting) {
@@ -1725,8 +1834,10 @@ function addCitizen(rootGroup: THREE.Group, frame: MeshFrame, citizen: MeshCitiz
     tether.scale.set(targeted ? 1.35 : 1, tetherH, targeted ? 1.35 : 1);
   }
 
-  const sphere = pool.mesh('sphere', citizenGeo, avatarMat ?? mat);
-  const breathe = 1 + Math.sin(frame.t * 4.2 + citizen.id) * 0.08;
+  const sphere = pool.mesh('sphere', contactGeometry(), avatarMat ?? mat);
+  group.userData.contactSkin = avatarMat ? citizen.avatarUrl : null;
+  group.userData.contactShape = contactGeometryDiagnostics().state === 'ready' ? 'blender-sphere' : 'procedural-sphere';
+  const breathe = frame.reducedEffects ? 1 : 1 + Math.sin(frame.t * 4.2 + citizen.id) * 0.08;
   sphere.scale.setScalar(dangerous ? 1.12 : breathe);
   sphere.castShadow = true;
 
@@ -1846,6 +1957,16 @@ function getAvatarMaterial(url: string): THREE.MeshStandardMaterial | null {
   const existing = avatarCache.get(cacheKey);
   if (existing) return existing.failed ? null : existing.material;
 
+  if (avatarCache.size >= AVATAR_CACHE_LIMIT) {
+    const unused = [...avatarCache].find(([key])=>!activeAvatarKeys.has(key));
+    if (!unused) return null; // Overflow retains the coloured sphere.
+    const [key,old] = unused;
+    old.evicted = true;
+    old.material?.map?.dispose();
+    old.material?.dispose();
+    avatarCache.delete(key);
+  }
+
   const entry: AvatarEntry = { loading: true, failed: false, material: null, candidates, index: 0 };
   avatarCache.set(cacheKey, entry);
   loadAvatarCandidate(entry);
@@ -1866,7 +1987,9 @@ function loadAvatarCandidate(entry: AvatarEntry): void {
   }
   const image = new Image();
   image.crossOrigin = 'anonymous';
+  image.referrerPolicy = 'no-referrer';
   image.onload = () => {
+    if (entry.evicted) return;
     let texture: THREE.CanvasTexture;
     try {
       texture = new THREE.CanvasTexture(downscaleAvatarImage(image));
@@ -1885,6 +2008,7 @@ function loadAvatarCandidate(entry: AvatarEntry): void {
 }
 
 function advanceAvatarCandidate(entry: AvatarEntry): void {
+  if (entry.evicted) return;
   entry.index += 1;
   if (entry.index < entry.candidates.length) {
     loadAvatarCandidate(entry);
@@ -1898,14 +2022,16 @@ function downscaleAvatarImage(image: HTMLImageElement): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = AVATAR_TEXTURE_SIZE;
   canvas.height = AVATAR_TEXTURE_SIZE;
-  // Squashing non-square images to a square matches the previous mapping —
-  // the sphere UVs already stretched the full texture across the surface.
-  canvas.getContext('2d')?.drawImage(image, 0, 0, AVATAR_TEXTURE_SIZE, AVATAR_TEXTURE_SIZE);
+  const side = Math.min(image.naturalWidth,image.naturalHeight);
+  canvas.getContext('2d')?.drawImage(image,(image.naturalWidth-side)/2,(image.naturalHeight-side)/2,side,side,0,0,AVATAR_TEXTURE_SIZE,AVATAR_TEXTURE_SIZE);
   return canvas;
 }
 
 function makeAvatarMaterial(texture: THREE.Texture): THREE.MeshStandardMaterial {
-  texture.wrapS = THREE.RepeatWrapping;
+  // Blender glTF UVs use image coordinates. Runtime CanvasTextures need the
+  // same flip convention or every portrait is upside down.
+  texture.flipY = false;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.repeat.set(1, 1);
   return new THREE.MeshStandardMaterial({
@@ -1913,9 +2039,9 @@ function makeAvatarMaterial(texture: THREE.Texture): THREE.MeshStandardMaterial 
     map: texture,
     emissive: 0x102b28,
     emissiveMap: texture,
-    emissiveIntensity: 0.22,
-    metalness: 0.16,
-    roughness: 0.34,
+    emissiveIntensity: 0.08,
+    metalness: 0.04,
+    roughness: 0.3,
   });
 }
 
@@ -2017,6 +2143,63 @@ function addEnemy(rootGroup: THREE.Group, frame: MeshFrame, enemy: MeshEnemy): v
   group.rotation.x = motionBank + Math.sin(frame.t * 3 + enemy.phase) * (enemy.type === 'jammer' ? 0.16 : 0.12) + Math.sin(turn * Math.PI) * (enemy.type === 'carrier' ? 0.06 : 0.14);
   group.rotation.y = faceYaw + Math.sin(frame.t * (enemy.type === 'carrier' ? 0.52 : enemy.type === 'hunter' ? 2.2 : 1.65) + enemy.phase) * (enemy.type === 'carrier' ? 0.16 : enemy.type === 'hunter' ? 0.42 : 0.34) + Math.sin(turn * Math.PI) * enemy.face * 0.28;
   group.rotation.z = motionYaw + Math.sin(frame.t * (enemy.type === 'hunter' ? 3.4 : 2.7) + enemy.phase) * (enemy.type === 'carrier' ? 0.08 : 0.14) + clamp(enemy.intent, 0, 1) * enemy.face * (enemy.type === 'hunter' ? 0.08 : 0.05);
+  if (frame.reducedEffects) {
+    group.rotation.set(motionBank, faceYaw, motionYaw);
+  }
+
+  const model = enemy.type === 'spoof' ? 'forgery' : enemy.type;
+  if (model !== 'troll') requestFlightArt([model]);
+  const authored = model !== 'troll' ? getFlightArt(model) : [];
+  const baked = model !== 'troll' ? getFlightBake(model) : undefined;
+  const trollBake = model === 'troll' ? sculptedBillboard('troll') : undefined;
+  if (trollBake) {
+    alienPaths.troll = 'baked';
+    group.rotation.set(0,0,frame.reducedEffects ? 0 : motionYaw * .2);
+    const body = pool.sprite('sculpted-troll',trollBake);
+    body.position.z = 18;
+    body.scale.set(160 * .62 * enemyFacing(enemy,frame),160 * .62,1);
+    addTrollDetail(group,frame,enemy);
+    return;
+  }
+  if (authored.length || baked) {
+    // Mirror the complete top-facing hull rather than showing its unlit belly
+    // when flying left. The bank and turn cue still come from existing state.
+    group.rotation.y -= faceYaw;
+    group.scale.x *= enemyFacing(enemy, frame);
+    const boss = enemy.type === 'carrier';
+    if (baked && (frame.lowCost || !authored.length)) {
+      if (boss) flightBossPath = 'baked';
+      else alienPaths[model] = 'baked';
+      const plane = pool.mesh(`flight-bake:${model}`, flightBakePlane, baked);
+      plane.scale.set(boss ? 320 : 160, boss ? 160 : 106.6667, 1);
+      plane.position.z = 18;
+    } else {
+      if (boss) flightBossPath = 'mesh';
+      else alienPaths[model] = 'mesh';
+      for (const part of authored) {
+        const mesh = pool.mesh(`flight:${model}:${part.surface}`, part.geometry, part.material);
+        mesh.position.z = 0;
+        mesh.scale.setScalar(1);
+      }
+    }
+    if (boss) for (const side of [-1,1] as const) addSpriteGlow(pool, `drive:${side}`, glowMats.rose, -151, side*33, -3, 36, 14);
+    else addSpriteGlow(pool,'authored-drive',enemy.type === 'jammer' || enemy.type === 'spammer' ? glowMats.blue : enemy.type === 'hunter' ? glowMats.amber : glowMats.rose,-49,0,-3,26,10);
+    const stolen = enemy.type === 'spoof' && enemy.stolenAvatarUrl ? getAvatarMaterial(enemy.stolenAvatarUrl) : null;
+    if (stolen) {
+      const screen = pool.mesh('forged-identity',contactGeometry(),stolen);
+      screen.position.set(0,0,19);
+      screen.scale.setScalar(.32);
+      screen.rotation.set(0,frame.reducedEffects ? 0 : frame.t*.7,0);
+    }
+    if (boss && enemy.hp < enemy.maxHp * 0.5) {
+      // Existing damage state, no random calls or added damage timers.
+      addSpriteGlow(pool, 'damaged-reactor', glowMats.amber, 28, 0, 48, 24, 9);
+    }
+    addEnemyMuzzleBloom(group, frame, enemy);
+    return;
+  }
+  if (enemy.type === 'carrier') flightBossPath = 'procedural';
+  else alienPaths[model] = 'procedural';
 
   // material/shadowMaterial are unused for troll (billboard sprite instead
   // of a body mesh, see below) - the ternary just falls through to the
@@ -2114,12 +2297,13 @@ function addEnemyMuzzleBloom(group: THREE.Group, frame: MeshFrame, enemy: MeshEn
   const pool = childPool(group);
   const muzzle = clamp(enemy.muzzle, 0, 1);
   if (muzzle <= 0.01) return;
-  const pulse = muzzle * (0.72 + Math.sin(frame.t * 44 + enemy.phase) * 0.16);
+  const pulse = muzzle * (0.72 + (frame.reducedEffects ? 0 : Math.sin(frame.t * 44 + enemy.phase) * 0.16));
   if (enemy.type === 'carrier') {
+    const authored = getFlightArt('carrier').length > 0 || !!getFlightBake('carrier');
     for (const side of [-1, 0, 1] as const) {
-      addSpriteGlow(pool, `muzzle-vent-glow:${side}`, glowMats.rose, 74, side * 24, 24, 82 * pulse, 58 * pulse);
+      addSpriteGlow(pool, `muzzle-vent-glow:${side}`, glowMats.rose, authored ? 129 : 74, side * (authored ? 12 : 24), 24, 34 * pulse, 24 * pulse);
       const vent = pool.mesh(`muzzle-vent:${side}`, shotHeadGeo, mats.shotBarrage);
-      vent.position.set(68, side * 24, 28);
+      vent.position.set(authored ? 127 : 68, side * (authored ? 12 : 24), 28);
       vent.scale.setScalar(8 * pulse);
     }
     addSpriteGlow(pool, 'muzzle-amber', glowMats.amber, 44, 0, 30, 74 * pulse, 44 * pulse);
@@ -2260,7 +2444,7 @@ function addSpoofDetail(group: THREE.Group, frame: MeshFrame, enemy: MeshEnemy, 
   if (stolenMat) {
     // The stolen identity rides at the hull core: the victim's avatar on a
     // glitch-jittering orb, caged by a spoof-coloured ring.
-    const face = pool.mesh('spoof-face', citizenGeo, stolenMat);
+    const face = pool.mesh('spoof-face', contactGeometry(), stolenMat);
     face.position.set(6 + jitter * 0.8, 0, 22);
     face.rotation.y = frame.t * 1.4 + Math.sin(frame.t * 9 + enemy.phase) * 0.22;
     face.rotation.z = Math.sin(frame.t * 13 + enemy.phase) * 0.12;
@@ -2359,13 +2543,13 @@ function addTrollDetail(group: THREE.Group, frame: MeshFrame, enemy: MeshEnemy):
   // "about to pop" rainbow flash.
   const feeding = clamp(enemy.intent, 0, 1);
   if (feeding > 0.05) {
-    const gulp = 0.72 + Math.sin(frame.t * 9 + enemy.phase) * 0.18;
+    const gulp = frame.reducedEffects ? 0.72 : 0.72 + Math.sin(frame.t * 9 + enemy.phase) * 0.18;
     addSpriteGlow(pool, 'troll-feed-glow', glowMats.green, 20, -6, 26, 52 * feeding * gulp, 36 * feeding * gulp);
   }
   const pop = clamp(enemy.popFlash ?? 0, 0, 1);
   if (pop > 0) {
-    const hue = ((frame.t * 540) % 360) / 360;
-    const flicker = 0.55 + Math.sin(frame.t * 26 + enemy.phase) * 0.45;
+    const hue = frame.reducedEffects ? 340 / 360 : ((frame.t * 540) % 360) / 360;
+    const flicker = frame.reducedEffects ? 0.15 : 0.55 + Math.sin(frame.t * 26 + enemy.phase) * 0.45;
     trollPopFlashMat.color.setHSL(hue, 1, 0.58);
     trollPopFlashMat.opacity = pop * (0.55 + flicker * 0.45);
     const flash = pool.sprite('pop-flash', trollPopFlashMat);
@@ -2656,6 +2840,7 @@ function makeIconSpriteMaterial(): THREE.SpriteMaterial {
 function applyIconCanvas(material: THREE.SpriteMaterial, canvas: HTMLCanvasElement): void {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  material.map?.dispose();
   material.map = texture;
   material.opacity = 1;
   material.needsUpdate = true;
@@ -2738,6 +2923,10 @@ const iconMats = {
   sixHundredB: makeIconSpriteMaterial(),
 };
 
+drawIconMaterial(iconMats.rose, c => drawValuePickupFallback(c, 'rose'));
+drawIconMaterial(iconMats.wholeCake, c => drawValuePickupFallback(c, 'whole-cake'));
+iconMats.cakePiece.forEach(m => drawIconMaterial(m, c => drawValuePickupFallback(c, 'cake-piece')));
+
 loadIconImageMaterial(iconMats.rose, ROSE_PICKUP_URL);
 loadIconImageMaterial(iconMats.wholeCake, WHOLE_CAKE_PICKUP_URL);
 CAKE_PICKUP_URLS.forEach((url, i) => loadIconImageMaterial(iconMats.cakePiece[i]!, url));
@@ -2769,13 +2958,23 @@ function addBeacon(rootGroup: THREE.Group, frame: MeshFrame, beacon: MeshBeacon,
   const pool = childPool(group);
   pool.beginEntity();
   group.position.set(x, sy(beacon.y, frame), 92);
-  group.rotation.y = frame.t * 3.2 + beacon.age * 1.4;
-  group.rotation.x = Math.sin(frame.t * 2.2) * 0.12;
+  group.rotation.y = frame.reducedEffects ? 0 : frame.t * 3.2 + beacon.age * 1.4;
+  group.rotation.x = frame.reducedEffects ? 0 : Math.sin(frame.t * 2.2) * 0.12;
   const kind = beacon.kind ?? '600b';
   group.scale.setScalar(0.62 * frame.tuning.actorScale * meshPickupScale(kind));
   const scale = kind === 'life' ? 1.08 : 1 + Math.min(0.32, (beacon.value - 1) * 0.12);
 
-  if (kind === 'life') addLifeBeaconMesh(pool, frame, scale);
+  const authored = sculptedBillboard(kind,beacon.spriteIndex);
+  pickupPaths[kind] = authored ? 'baked' : 'procedural';
+  if (authored) {
+    // Billboard keeps faces, trap clocks and reward symbols legible throughout
+    // their lifetime; decorative motion uses the existing presentation clock.
+    group.rotation.set(0,0,0);
+    const icon = pool.sprite(`sculpted-pickup:${kind}`,authored);
+    icon.position.z = 12;
+    icon.scale.set(110 * scale,110 * scale,1);
+    icon.material.rotation = frame.reducedEffects ? 0 : Math.sin(frame.t * 1.7) * .07;
+  } else if (kind === 'life') addLifeBeaconMesh(pool, frame, scale);
   else if (kind === 'rose') addIconBeaconMesh(pool, iconMats.rose, 100 * scale);
   else if (kind === 'cake-piece') addIconBeaconMesh(pool, iconMats.cakePiece[(beacon.spriteIndex ?? 0) % iconMats.cakePiece.length]!, 100 * scale);
   else if (kind === 'whole-cake') addIconBeaconMesh(pool, iconMats.wholeCake, 100 * scale);
@@ -2790,11 +2989,11 @@ function addBeacon(rootGroup: THREE.Group, frame: MeshFrame, beacon: MeshBeacon,
   else if (kind === 'multi') addFanoutBeaconMesh(pool, scale);
   else addIconBeaconMesh(pool, iconMats.sixHundredB, 100 * scale);
 
-  const ring = pool.mesh('ring', beaconRingGeo, pickupRingMaterial(kind));
-  ring.rotation.y = -group.rotation.y;
-  ring.scale.setScalar(1 + Math.sin(frame.t * 6.5) * 0.08);
+  const ring = pool.sprite('signal-frame', pickupFrameMaterial(kind));
+  ring.position.z = 18;
+  ring.scale.set(128, 128, 1);
   const glow = pickupGlowMaterial(kind);
-  addSpriteGlow(pool, 'glow', glow, 0, 0, -8, 88 + scale * 14, 88 + scale * 14);
+  if (!authored) addSpriteGlow(pool, 'glow', glow, 0, 0, -8, 88 + scale * 14, 88 + scale * 14);
 }
 
 function addFanoutBeaconMesh(pool: ChildPool, scale: number): void {
@@ -2919,6 +3118,19 @@ function pickupRingMaterial(kind: MeshBeacon['kind']): THREE.MeshBasicMaterial {
   if (kind === 'shield') return mats.laserGlow;
   if (kind === 'relay' || kind === 'net') return mats.signalRing;
   return mats.beaconRing;
+}
+
+const pickupFrames = new Map<string, THREE.SpriteMaterial>();
+function pickupFrameMaterial(kind: MeshBeacon['kind']): THREE.SpriteMaterial {
+  const colour = pickupRingMaterial(kind).color.getStyle();
+  const key = `${colour}:${kind === 'timelock'}`;
+  let material = pickupFrames.get(key);
+  if (!material) {
+    material = makeIconSpriteMaterial();
+    drawIconMaterial(material, c => drawPickupFrame(c, 54, colour, kind === 'timelock'));
+    pickupFrames.set(key, material);
+  }
+  return material;
 }
 
 function pickupGlowMaterial(kind: MeshBeacon['kind']): THREE.SpriteMaterial {

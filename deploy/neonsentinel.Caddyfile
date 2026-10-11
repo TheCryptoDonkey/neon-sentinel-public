@@ -43,14 +43,17 @@ neonsentinel.com, app.neonsentinel.com, www.neonsentinel.com, neonsentinel.playe
 	}
 
 	@spa {
-		not path /api/* /healthz *.html *.js *.css *.map *.png *.jpg *.jpeg *.svg *.webp *.woff *.woff2 *.opus *.m4a *.mp3 *.json *.webmanifest *.ico *.txt
+		not path /api/* /healthz *.html *.js *.css *.map *.png *.jpg *.jpeg *.svg *.webp *.woff *.woff2 *.opus *.m4a *.mp3 *.json *.webmanifest *.ico *.txt *.glb *.gltf *.bin
 	}
 	rewrite @spa /index.html
 
 	file_server
+	# Models must remain assets, including missing-model 404s.
+	header /models/*.glb Content-Type "model/gltf-binary"
+	header /models/*.gltf Content-Type "model/gltf+json"
 
 	@hashed_real {
-		path /assets/* /music/* /backgrounds/* /brand/*
+		path /assets/* /music/* /backgrounds/* /brand/* /models/*
 		file
 	}
 	header @hashed_real Cache-Control "public, max-age=31536000, immutable"

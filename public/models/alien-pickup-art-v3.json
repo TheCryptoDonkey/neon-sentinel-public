@@ -1,0 +1,222 @@
+{
+  "abductor": {
+    "triangles": 4676,
+    "authoringParts": 19,
+    "glbBytes": 198536,
+    "logicalWidth": 160,
+    "logicalHeight": 106.66666666666667,
+    "bakeWidth": 384,
+    "bakeHeight": 256,
+    "bakeBytes": 12834
+  },
+  "hunter": {
+    "triangles": 3748,
+    "authoringParts": 19,
+    "glbBytes": 155484,
+    "logicalWidth": 160,
+    "logicalHeight": 106.66666666666667,
+    "bakeWidth": 384,
+    "bakeHeight": 256,
+    "bakeBytes": 12164
+  },
+  "jammer": {
+    "triangles": 6080,
+    "authoringParts": 22,
+    "glbBytes": 282124,
+    "logicalWidth": 160,
+    "logicalHeight": 106.66666666666667,
+    "bakeWidth": 384,
+    "bakeHeight": 256,
+    "bakeBytes": 13618
+  },
+  "forgery": {
+    "triangles": 4052,
+    "authoringParts": 15,
+    "glbBytes": 174340,
+    "logicalWidth": 160,
+    "logicalHeight": 106.66666666666667,
+    "bakeWidth": 384,
+    "bakeHeight": 256,
+    "bakeBytes": 12260
+  },
+  "spammer": {
+    "triangles": 4932,
+    "authoringParts": 33,
+    "glbBytes": 208116,
+    "logicalWidth": 160,
+    "logicalHeight": 106.66666666666667,
+    "bakeWidth": 384,
+    "bakeHeight": 256,
+    "bakeBytes": 9446
+  },
+  "sybil": {
+    "triangles": 8060,
+    "authoringParts": 22,
+    "glbBytes": 328372,
+    "logicalWidth": 160,
+    "logicalHeight": 106.66666666666667,
+    "bakeWidth": 384,
+    "bakeHeight": 256,
+    "bakeBytes": 14230
+  },
+  "troll": {
+    "triangles": 8428,
+    "authoringParts": 24,
+    "glbBytes": 0,
+    "logicalWidth": 160,
+    "logicalHeight": 160.0,
+    "bakeWidth": 384,
+    "bakeHeight": 384,
+    "bakeBytes": 14610
+  },
+  "rose": {
+    "triangles": 10668,
+    "authoringParts": 24,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 8356
+  },
+  "cake-piece": {
+    "triangles": 4544,
+    "authoringParts": 12,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 5736
+  },
+  "whole-cake": {
+    "triangles": 20508,
+    "authoringParts": 23,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 7520
+  },
+  "600b": {
+    "triangles": 21236,
+    "authoringParts": 41,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 8468
+  },
+  "life": {
+    "triangles": 1752,
+    "authoringParts": 4,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 4154
+  },
+  "shield": {
+    "triangles": 876,
+    "authoringParts": 5,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 7076
+  },
+  "relay": {
+    "triangles": 6900,
+    "authoringParts": 36,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 10692
+  },
+  "charge": {
+    "triangles": 596,
+    "authoringParts": 5,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 4194
+  },
+  "zap": {
+    "triangles": 1436,
+    "authoringParts": 5,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 7282
+  },
+  "net": {
+    "triangles": 3040,
+    "authoringParts": 14,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 16086
+  },
+  "cult": {
+    "triangles": 2500,
+    "authoringParts": 6,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 13604
+  },
+  "fourtwenty": {
+    "triangles": 11504,
+    "authoringParts": 21,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 8532
+  },
+  "scooter": {
+    "triangles": 4312,
+    "authoringParts": 23,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 8890
+  },
+  "multi": {
+    "triangles": 3012,
+    "authoringParts": 10,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 7448
+  },
+  "timelock": {
+    "triangles": 6536,
+    "authoringParts": 36,
+    "glbBytes": 0,
+    "logicalWidth": 110,
+    "logicalHeight": 110.0,
+    "bakeWidth": 256,
+    "bakeHeight": 256,
+    "bakeBytes": 10108
+  }
+}

@@ -19,15 +19,13 @@ const MAX_BRIGHTNESS = 1.3;
 
 function defaults(): VisualState {
   return {
-    // Vector picker hidden for the moment — always start in mesh. Runtime
-    // fallback (WebGL context loss, see main.ts requestMeshOverlay) still
-    // switches the live tier to 'vector' mid-session; only the persisted
-    // default/parse is forced here.
+    // Start new players in mesh; saved choices and temporary renderer failure
+    // are independent of this default.
     tier: 'mesh',
     theme: 'none',
     brightness: 1,
     postfxChosen: false,
-    reducedEffects: false,
+    reducedEffects: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
     leftHandedTouch: false,
   };
 }
@@ -57,11 +55,11 @@ function load(): VisualState {
     if (raw) {
       const parsed = JSON.parse(raw) as Record<string, unknown>;
       cached = {
-        tier: 'mesh',
+        tier: parsed.tier === 'vector' ? 'vector' : 'mesh',
         theme: parsed.postfxChosen === true ? coerceThemeId(parsed.theme ?? base.theme) : base.theme,
         brightness: coerceBrightness(parsed.brightness, base.brightness),
         postfxChosen: parsed.postfxChosen === true,
-        reducedEffects: parsed.reducedEffects === true,
+        reducedEffects: typeof parsed.reducedEffects === 'boolean' ? parsed.reducedEffects : base.reducedEffects,
         leftHandedTouch: parsed.leftHandedTouch === true,
       };
       applyBrightnessSetting(cached.brightness);

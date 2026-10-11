@@ -1,0 +1,42 @@
+{
+  "interceptor": {
+    "triangles": 8634,
+    "authoringParts": 56,
+    "batches": 5,
+    "glbBytes": 381396,
+    "bakeWidth": 512,
+    "bakeHeight": 341,
+    "logicalWidth": 190,
+    "bakeBytes": 21940
+  },
+  "guardian": {
+    "triangles": 9034,
+    "authoringParts": 60,
+    "batches": 5,
+    "glbBytes": 402048,
+    "bakeWidth": 512,
+    "bakeHeight": 341,
+    "logicalWidth": 190,
+    "bakeBytes": 22526
+  },
+  "heavy": {
+    "triangles": 9206,
+    "authoringParts": 61,
+    "batches": 5,
+    "glbBytes": 395548,
+    "bakeWidth": 512,
+    "bakeHeight": 341,
+    "logicalWidth": 190,
+    "bakeBytes": 25170
+  },
+  "carrier": {
+    "triangles": 21336,
+    "authoringParts": 142,
+    "batches": 5,
+    "glbBytes": 868312,
+    "bakeWidth": 768,
+    "bakeHeight": 384,
+    "logicalWidth": 320,
+    "bakeBytes": 34636
+  }
+}
