@@ -172,3 +172,27 @@ remain unqualified. See [public verification](evidence/neon-live-046a822.json),
 [API activation](evidence/neon-api-live-046a822.json),
 [checked recovery](evidence/neon-recovery-checked-046a822.json) and
 [checked SDK modal](evidence/neon-modal-checked-046a822.json).
+
+## Published Neon earned My Signet recovery passes
+
+A fresh disposable My Signet account signs into arcade `4aa7661` through the
+Hetzner-forced 600 origin and launches published Neon `046a822`. The publisher
+entry hash matches the previously verified public/checked artifact. The arcade
+parent closes before normal gameplay; no game or score state is injected and
+no receipt is seeded. The run earns 8,745 points. Its failed bridge signing
+retains an original-account receipt and makes no claim request.
+
+Explicit same-account My Signet reconnect succeeds, reload preserves the exact
+receipt, and a second explicit reconnect enables selected-run retry. Exactly
+one canonical original-account NIP-98 claim returns HTTP 200 with publication
+to five of seven relays. The original run ID, points and finish timestamp remain
+unchanged. An independent relay read verifies the game-authority event, player
+attribution and score; the confirmed receipt clears. Fresh score-detail pages
+in both editions show 8,745, the same player and reviewed game authority.
+
+This establishes current desktop provider recovery; it does not establish
+physical devices, public 600 DNS cutover, payment settlement or actual delayed
+publication beyond ten minutes. Earlier provider timeouts remain recorded,
+without an established cause for the subsequent successful attempt. See
+[earned recovery](evidence/neon-earned-recovery-046a822.json) and
+[fresh display checks](evidence/neon-earned-recovery-ui-046a822.json).

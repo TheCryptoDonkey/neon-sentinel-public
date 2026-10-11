@@ -1,0 +1,288 @@
+{
+  "origin": "https://arcade.600.wtf",
+  "arcadeRevision": "4aa7661d9d18887021c1b044747980dc091c2bf6",
+  "gameRevision": "046a822da97b059ee048f5240add89eaf58871a1",
+  "assetFingerprints": [
+    {
+      "path": "/assets/index-V3pMRgTx.js",
+      "sha256": "b22b39055447cb6ff795c75dfce39b04ec7c2fd15f81f5bdc3cdee01dea971e5"
+    }
+  ],
+  "actualMySignet": true,
+  "physicalDevice": false,
+  "forcedHetznerArcadeDns": true,
+  "publicPublisherDns": true,
+  "gameOrScoreStateInjected": false,
+  "receiptNotSeeded": true,
+  "parentClosedBeforeRun": true,
+  "reloadPreservesReceipt": true,
+  "independentOriginalAccountReconnect": true,
+  "receiptClearedAfterPositivePublication": true,
+  "pubkey": "710f1634d5d9892abc3439e32cd0156cb2cdd79c16796028f168188b0c58fe60",
+  "score": 8745,
+  "earnedReceipt": {
+    "pubkey": "710f1634d5d9892abc3439e32cd0156cb2cdd79c16796028f168188b0c58fe60",
+    "summary": {
+      "runId": "run-bku952-5fwk79",
+      "playerName": "npub 710f16",
+      "playerMode": "nostr",
+      "playerPubkey": "710f1634d5d9892abc3439e32cd0156cb2cdd79c16796028f168188b0c58fe60",
+      "score": 8745,
+      "wave": 1,
+      "sats": 0,
+      "startedAt": 1791701494215,
+      "finishedAt": 1791701543148,
+      "durationMs": 48933,
+      "rescues": 2,
+      "knownRescues": 2,
+      "lost": 0,
+      "maxCombo": 6,
+      "metrics": {
+        "deaths": 6,
+        "damageEvents": 6,
+        "shotHitRate": 0.040268456375838924,
+        "shotsFired": 298,
+        "shotsHit": 12,
+        "rescueAverageSeconds": 1.433499999999964,
+        "rescueSlowestSeconds": 1.5196666666666285,
+        "lowCampSeconds": 0,
+        "lowCampRatio": 0,
+        "contactsLifted": 2,
+        "contactsDropped": 0,
+        "contactsForged": 0,
+        "topDamageSource": "dart:6",
+        "waveDurations": [
+          {
+            "wave": 1,
+            "seconds": 43.33400000000212,
+            "cleared": false
+          }
+        ]
+      }
+    }
+  },
+  "claims": [
+    {
+      "auth": {
+        "id": "0220bac6cb33ecf95fb3ccecca83dad449fb15ce1bcc10ef97d5e71f3f25ad6f",
+        "pubkey": "710f1634d5d9892abc3439e32cd0156cb2cdd79c16796028f168188b0c58fe60",
+        "sig": "8ce9d3b7ca1372cd962ed1b68027bae433a2dae5e49044b8de0940743b5049119bfae3d672485587d076d1c91776618d88c656f853108f33bfe687876c15fdf3",
+        "kind": 27235,
+        "created_at": 1791701594,
+        "content": "",
+        "tags": [
+          [
+            "u",
+            "https://neonsentinel.com/api/claim"
+          ],
+          [
+            "method",
+            "POST"
+          ],
+          [
+            "payload",
+            "027067e880b374718ef9d6a8daed87f7c55af542e0c2f6bd164bce5ec87460e1"
+          ]
+        ]
+      },
+      "payload": {
+        "game": "neonsentinel",
+        "score": 8745,
+        "wave": 1,
+        "duration_ms": 48933,
+        "started_at": 1791701494215,
+        "finished_at": 1791701543148,
+        "credits": 0,
+        "sats_claimed": 0,
+        "run_id": "run-bku952-5fwk79",
+        "rescues": 2,
+        "known_rescues": 2,
+        "lost": 0,
+        "max_combo": 6,
+        "player_name": "npub 710f16",
+        "player_mode": "nostr",
+        "metrics": {
+          "deaths": 6,
+          "damageEvents": 6,
+          "shotHitRate": 0.040268456375838924,
+          "shotsFired": 298,
+          "shotsHit": 12,
+          "rescueAverageSeconds": 1.433499999999964,
+          "rescueSlowestSeconds": 1.5196666666666285,
+          "lowCampSeconds": 0,
+          "lowCampRatio": 0,
+          "contactsLifted": 2,
+          "contactsDropped": 0,
+          "contactsForged": 0,
+          "topDamageSource": "dart:6",
+          "waveDurations": [
+            {
+              "wave": 1,
+              "seconds": 43.33400000000212,
+              "cleared": false
+            }
+          ]
+        },
+        "telemetry": {
+          "scoring_kind": 30762,
+          "sentinel_variant": "nostr",
+          "write_relays": [
+            "wss://main.relay.gamestr.io",
+            "wss://relay.trotters.cc",
+            "wss://nos.lol",
+            "wss://relay.damus.io",
+            "wss://relay.nostr.band",
+            "wss://relay.primal.net",
+            "wss://relay.ditto.pub"
+          ],
+          "profile_read_relays": [
+            "wss://relay.trotters.cc",
+            "wss://nos.lol",
+            "wss://relay.damus.io",
+            "wss://relay.nostr.band",
+            "wss://relay.primal.net",
+            "wss://relay.ditto.pub",
+            "wss://nostr.wine"
+          ]
+        }
+      }
+    }
+  ],
+  "responseProof": [
+    {
+      "status": 200,
+      "ok": true,
+      "eventId": "93fee0e29c6970e89e09f8a983c5b341d946df51a6f576db5c8310d149bdc64b",
+      "published": {
+        "ok": 5,
+        "total": 7
+      }
+    }
+  ],
+  "event": {
+    "content": "{\"game\":\"neonsentinel\",\"run_id\":\"run-bku952-5fwk79\",\"player\":\"710f1634d5d9892abc3439e32cd0156cb2cdd79c16796028f168188b0c58fe60\",\"started_at\":1791701494215,\"finished_at\":1791701543148,\"score\":8745,\"wave\":1,\"credits\":0,\"payout_sats\":0,\"playerName\":\"npub 710f16\",\"playerMode\":\"nostr\",\"player_name\":\"npub 710f16\",\"player_mode\":\"nostr\",\"nip05\":null,\"metrics\":{\"deaths\":6,\"damageEvents\":6,\"shotHitRate\":0.040268456375838924,\"shotsFired\":298,\"shotsHit\":12,\"rescueAverageSeconds\":1.433499999999964,\"rescueSlowestSeconds\":1.5196666666666285,\"lowCampSeconds\":0,\"lowCampRatio\":0,\"contactsLifted\":2,\"contactsDropped\":0,\"contactsForged\":0,\"topDamageSource\":\"dart:6\",\"waveDurations\":[{\"wave\":1,\"seconds\":43.33400000000212,\"cleared\":false}]}}",
+    "created_at": 1791701595,
+    "id": "93fee0e29c6970e89e09f8a983c5b341d946df51a6f576db5c8310d149bdc64b",
+    "kind": 30762,
+    "pubkey": "370148bb752fee753c8dd436752e801f02913dbc7ac6330828d13d5540c4ca21",
+    "sig": "17da5cd7bb472861b50cc66eaa2a9015721314f24dedd6e0c2416f72f92ede17cc4f7010f4e2bc5613b9653f279acba1cac67fbdd0c8ad6c65ad49910761f314",
+    "tags": [
+      [
+        "d",
+        "neonsentinel:710f1634d5d9892abc3439e32cd0156cb2cdd79c16796028f168188b0c58fe60:run-bku952-5fwk79"
+      ],
+      [
+        "game",
+        "neonsentinel"
+      ],
+      [
+        "score",
+        "8745"
+      ],
+      [
+        "p",
+        "710f1634d5d9892abc3439e32cd0156cb2cdd79c16796028f168188b0c58fe60"
+      ],
+      [
+        "sats",
+        "0"
+      ],
+      [
+        "state",
+        "final"
+      ],
+      [
+        "wave",
+        "1"
+      ],
+      [
+        "duration",
+        "49"
+      ],
+      [
+        "rescues",
+        "2"
+      ],
+      [
+        "known_rescues",
+        "2"
+      ],
+      [
+        "lost",
+        "0"
+      ],
+      [
+        "credits",
+        "0"
+      ],
+      [
+        "max_combo",
+        "6"
+      ],
+      [
+        "title",
+        "Neon Sentinel"
+      ],
+      [
+        "level",
+        "1"
+      ],
+      [
+        "r",
+        "https://neonsentinel.com/"
+      ],
+      [
+        "source",
+        "neonsentinel.com"
+      ],
+      [
+        "platform",
+        "web"
+      ],
+      [
+        "image",
+        "https://neonsentinel.com/brand/icon-512.png"
+      ],
+      [
+        "r",
+        "https://neonsentinel.com/brand/icon-512.png"
+      ],
+      [
+        "imeta",
+        "url https://neonsentinel.com/brand/icon-512.png",
+        "m image/png",
+        "alt Neon Sentinel icon"
+      ],
+      [
+        "t",
+        "arcade"
+      ],
+      [
+        "t",
+        "rescue-shooter"
+      ],
+      [
+        "t",
+        "nostr"
+      ],
+      [
+        "t",
+        "neonsentinel"
+      ],
+      [
+        "player",
+        "npub 710f16"
+      ],
+      [
+        "playerName",
+        "npub 710f16"
+      ],
+      [
+        "playerMode",
+        "nostr"
+      ]
+    ]
+  },
+  "paymentTest": false,
+  "at": "2026-10-11T06:53:21.110Z"
+}
