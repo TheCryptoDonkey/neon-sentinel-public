@@ -62,5 +62,29 @@
   "actualMySignet": false,
   "physicalDevice": false,
   "paymentSettlement": false,
-  "at": "2026-10-11T06:45:11.193Z"
+  "at": "2026-10-11T06:45:11.193Z",
+  "publicApiHealthBrowser": [
+    {
+      "path": "/api/claim/health",
+      "status": 200,
+      "ok": true,
+      "signerConfigured": true,
+      "claimsSeen": 2,
+      "publishEnabled": true
+    },
+    {
+      "path": "/healthz",
+      "status": 200,
+      "ok": true,
+      "signerConfigured": true,
+      "claimsSeen": 2,
+      "publishEnabled": true
+    }
+  ],
+  "productionNodeVersion": "22.23.2",
+  "nonBrowserHealthProbe": {
+    "client": "Python urllib",
+    "status": 403,
+    "causeEstablished": false
+  }
 }
