@@ -75,3 +75,14 @@ Actual same-account My Signet reconnect/publication and physical acceptance
 remain required for complete consumer acceptance.
 An actual My Signet attempt stopped at initial arcade signer readiness before
 any earned run or claim; it does not qualify recovery.
+
+### Delayed recovery policy still open
+
+Read-only inspection of the deployed compiled API on 11 October confirms
+`STALE_RUN_MS = 10 * 60 * 1e3` and `stale_run` rejection. Source validates
+run age before accepted-claim lookup, and prunes its cache after thirty minutes.
+The current private recovery fixtures use recent runs; they do not qualify
+publication after that window. Persistent receipts need compatible delayed
+acceptance, durable idempotency and explicit owner-controlled handling of
+permanently rejected receipts. Original timestamps must stay unchanged. No API
+process, configuration or server code was changed by the client deployments.
