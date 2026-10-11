@@ -591,6 +591,7 @@ const recoverySelect = document.getElementById('score-recovery-runs') as HTMLSel
 const recoveryStatus = document.getElementById('score-recovery-status') as HTMLElement;
 const recoveryRetry = document.getElementById('score-recovery-retry') as HTMLButtonElement;
 const recoveryReconnect = document.getElementById('score-recovery-reconnect') as HTMLButtonElement;
+const recoveryRemove = document.getElementById('score-recovery-remove') as HTMLButtonElement;
 let recoveryMessage = '';
 let recoveryBusy = false;
 const scorePublishButton = document.getElementById('score-publish');
@@ -13060,6 +13061,9 @@ function scoreClaimErrorLabel(result: ClaimResult): string {
   if (result.status === 404 || result.error === 'bad_response') return 'CLAIM API OFFLINE';
   if (result.error === 'recovery_storage_unavailable') return 'CANNOT SAVE SCORE · KEEP GAME OPEN';
   if (result.error === 'original_account_required') return 'RECONNECT ORIGINAL ACCOUNT';
+  if (result.error === 'stale_run') return 'SAVED RUN TOO OLD FOR THIS SERVER';
+  if (result.error === 'run_conflict') return 'SAVED RUN DIFFERS FROM THE ACCEPTED SCORE';
+  if (result.error === 'recovery_event_missing') return 'SERVER CANNOT RECOVER THIS SAVED RUN';
   if (result.error === 'signer_unavailable') return 'CLAIM SIGNER OFFLINE';
   if (result.error === 'network_error') return 'CLAIM NETWORK ERROR';
   if (result.error === 'sign_failed') return `SIGN FAIL ${result.detail?.slice(0, 20) ?? ''}`.trim();
@@ -13115,6 +13119,7 @@ function syncPersonalRecovery(): void {
   }
   recoveryRetry.disabled = scoreSubmitInFlight || recoveryBusy || !session || !sessionCanSignEvents(session);
   recoveryReconnect.disabled = scoreSubmitInFlight || recoveryBusy;
+  recoveryRemove.disabled = scoreSubmitInFlight || recoveryBusy;
   recoverySelect.disabled = scoreSubmitInFlight || recoveryBusy;
   recoveryStatus.textContent = recoveryMessage || (scoreSubmitInFlight ? 'Submission in progress. Wait for approval or its result.' : 'These runs belong to your selected account. Reconnect if its signer is offline, then retry the selected run.');
 }
@@ -13127,6 +13132,19 @@ recoveryDialog.addEventListener('keydown', event => event.stopPropagation());
 recoveryDialog.addEventListener('close', () => {resetActiveInput(); markPlayerActivity();});
 document.getElementById('score-recovery-close')!.addEventListener('click', () => recoveryDialog.close());
 recoverySelect.addEventListener('change', () => {recoveryMessage = '';syncPersonalRecovery();});
+recoveryRemove.addEventListener('click', () => {
+  if (scoreSubmitInFlight || recoveryBusy) return;
+  const owner = activeNostrSession();
+  const generation = scoreGeneration;
+  const receipt = owner && pendingPersonalScores(owner.pubkey).find(item => item.summary.runId === recoverySelect.value);
+  if (!receipt) return;
+  const confirmed = window.confirm(`Remove this saved ${receipt.summary.score.toLocaleString()}-point run?\n\nThis removes its retry copy from this device. You cannot undo this. Any score already published stays on the leaderboard.`);
+  if (!confirmed || generation !== scoreGeneration || activeNostrSession()?.pubkey !== owner.pubkey) return;
+  recoveryMessage = forgetPersonalScore(owner.pubkey, receipt.summary.runId)
+    ? 'The selected saved run has been removed from this device.'
+    : 'Could not remove the saved run. It remains on this device.';
+  syncPersonalRecovery();
+});
 recoveryRetry.addEventListener('click', async () => {
   if (scoreSubmitInFlight || recoveryBusy) return;
   const session = activeNostrSession();

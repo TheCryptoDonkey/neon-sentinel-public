@@ -104,3 +104,22 @@ All 101 units and both typechecks pass. CI now runs this gate and archives the
 checked API with a source revision and SHA-256 manifest. This candidate is not
 yet deployed; the current production ten-minute limit remains until deployment
 and verification. See [API fixture proof](evidence/neon-api-delayed-recovery-candidate.json).
+
+Saved-run recovery now offers REMOVE SELECTED RUN with an explicit native
+confirmation naming its points and the irreversible removal of this device's
+retry copy. It leaves published scores untouched. Cancel preserves all receipts;
+confirmation removes only the selected account/run. Removal is disabled while
+approval or submission is pending, and rechecks the active owner/generation
+before changing storage. Server stale/conflict/missing-event rejections now
+have readable player-facing labels. The private browser fixture passes cancel,
+confirmation, other-account preservation, pending-control guards and all prior
+recovery assertions at 390 × 844.
+
+Hosted `723b087` run 38118195811 passes the API and account-bound recovery
+gates but fails before opening the SDK picker: the accelerated attract demo
+starts during setup and intercepts the saved-score click. The keyboard driver
+now uses the real Escape input to return to the title before opening login.
+Enter activation, four-second idle hold, Escape cancellation and original
+receipt assertions remain unchanged and pass locally with the actual SDK.
+No product attract timing or keyboard assertions were relaxed. Full hosted
+qualification and both client/API deployment remain required.

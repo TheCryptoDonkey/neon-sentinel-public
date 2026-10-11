@@ -33,6 +33,12 @@ try{
  });
  const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.goto(origin+'/?attract=1',{waitUntil:'domcontentloaded'});
+ // The deliberately accelerated demo can start while a loaded CI worker is
+ // finishing setup. Use the actual cabinet key to return to the title and
+ // begin the picker check with a fresh idle interval.
+ await page.waitForFunction(()=>!!document.body.dataset.neonPhase && !!window.Signet);
+ await page.keyboard.press('Escape');
+ await page.waitForFunction(()=>document.body.dataset.neonPhase==='title');
  await page.locator('#score-recovery-open').click();
  await page.locator('#score-recovery-reconnect').click();
  await page.locator('#signet-login-dialog[open]').waitFor();

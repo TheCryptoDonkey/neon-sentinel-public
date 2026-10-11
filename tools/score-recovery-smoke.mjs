@@ -60,6 +60,10 @@ try {
     await page.locator('#score-recovery-open').click();
     await page.locator('#score-recovery[open]').waitFor();
     assert.equal(await page.locator('#score-recovery-runs option').count(), 2);
+    phase = 'cancel-removal-preserves-all-receipts';
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.locator('#score-recovery-remove').click();
+    assert.equal((await page.evaluate(k => JSON.parse(localStorage.getItem(k)), keys)).length, 3);
     await page.locator('#score-recovery-runs').press('ArrowDown');
     assert.equal(await page.evaluate(() => document.body.dataset.neonPhase), 'title');
     const controls = await page.locator('#score-recovery button,#score-recovery select').evaluateAll(els => els.map(el => ({ id: el.id, height: el.getBoundingClientRect().height })));
@@ -79,6 +83,7 @@ try {
     await page.locator('#score-recovery-retry').click();
     await page.waitForFunction(() => document.getElementById('score-recovery-retry').disabled);
     assert(await page.locator('#score-recovery-reconnect').isDisabled());
+    assert(await page.locator('#score-recovery-remove').isDisabled());
     assert(await page.locator('#score-recovery-runs').isDisabled());
     release();
     phase = 'unconfirmed-response-keeps-receipt';
@@ -109,8 +114,13 @@ try {
     await page.locator('#score-recovery-open').click();
     assert.equal(await page.locator('#score-recovery-runs option').count(), 1);
     assert.equal(await page.locator('#score-recovery-runs').inputValue(), 'saved-two');
+    phase = 'confirmed-removal-is-account-and-run-specific';
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('#score-recovery-remove').click();
+    assert(await page.locator('#score-recovery-open').isHidden());
+    assert.deepEqual((await page.evaluate(k => JSON.parse(localStorage.getItem(k)), keys)).map(r => r.summary.runId), ['other-account']);
     assert.deepEqual(errors, []);
-    const result = { fixture: 'Private candidate recovery UI; canonical fixture Signet, seeded public receipts, all external writes and public relay sockets blocked. Simulated publisher acknowledgements, no real My Signet or publication.', assets, viewport: { width: 390, height: 844 }, serviceWorkers: 'block', reload: true, sdkDelayedMs: 500, invalidCallbackRejected:true, validCallbackRestoresIdentity:true, accountIsolation: true, wrongAccountReconnectRejected: true, originalAccountReconnect: true, pendingControlsDisabled: true, unconfirmedReceiptRetained: true, exactConfirmedReceiptCleared: true, otherRunsPreserved: true, keyboardDoesNotStartGameFromDialog: true, minimumControlHeight: Math.min(...controls.map(c => c.height)), signatures, claims, physicalDevice: false, actualMySignet: false };
+    const result = { fixture: 'Private candidate recovery UI; canonical fixture Signet, seeded public receipts, all external writes and public relay sockets blocked. Simulated publisher acknowledgements, no real My Signet or publication.', assets, viewport: { width: 390, height: 844 }, serviceWorkers: 'block', reload: true, sdkDelayedMs: 500, invalidCallbackRejected:true, validCallbackRestoresIdentity:true, accountIsolation: true, wrongAccountReconnectRejected: true, originalAccountReconnect: true, pendingControlsDisabled: true, unconfirmedReceiptRetained: true, exactConfirmedReceiptCleared: true, cancelledRemovalPreservesReceipts:true, explicitRemovalIsOwnerAndRunSpecific:true, otherRunsPreserved: true, keyboardDoesNotStartGameFromDialog: true, minimumControlHeight: Math.min(...controls.map(c => c.height)), signatures, claims, physicalDevice: false, actualMySignet: false };
     await writeFile(process.env.NEON_RECOVERY_EVIDENCE || join(tmpdir(), 'neon-recovery-ui.json'), JSON.stringify(result, null, 2) + '\n');
     console.log(JSON.stringify({ phase, result: 'pass', assets }));
 }
