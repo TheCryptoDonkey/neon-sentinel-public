@@ -63,7 +63,15 @@ tests, builds, recovery UI and SDK modal checks pass locally.
 Hosted CI now archives both the whole client and a hash manifest for every
 checked file, plus its small code archive. This allows reuse of byte-identical
 media without trusting a rebuilt client or downloading large media again.
-The follow-up still requires hosted qualification, public byte verification,
-actual same-account My Signet reconnect/publication and physical acceptance.
+The `59f6452` follow-up passes hosted CI run 38104841854 and both browser
+checks against its exact archived code and full file manifest. It is now active
+on Hetzner. All 107 staged client files and 99 preserved API files match; public
+HTML, version, service worker, versioned SDK and entry JS/CSS pass exact-byte
+checks. Process 480607 stays running, with its environment unchanged. See
+[live proof](evidence/neon-live-59f6452.json),
+[checked recovery](evidence/neon-recovery-checked-59f6452.json) and
+[checked SDK modal](evidence/neon-modal-checked-59f6452.json).
+Actual same-account My Signet reconnect/publication and physical acceptance
+remain required for complete consumer acceptance.
 An actual My Signet attempt stopped at initial arcade signer readiness before
 any earned run or claim; it does not qualify recovery.
