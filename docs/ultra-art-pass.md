@@ -111,7 +111,7 @@ candidate selected the baked adaptive-quality path in this local sample.
 
 Viewport fixtures, controlled frame clocks and local Chrome measurements are
 browser evidence, not physical phone/gamepad acceptance, GPU profiling or
-thermal endurance. This pass has no deployment or release authorisation.
+thermal endurance. These were local acceptance results before release was requested.
 
 ## Alien fleet and powerups, 2026-10-11
 
@@ -202,7 +202,7 @@ recognisable play began in the immediate vector path at 2.14 s; all new
 sprites and six lazy GLBs were ready at 5.54 s. The upgrade preserved the
 entire authoritative state/camera and made zero gameplay RNG calls. These
 are local dev-server timings, not production/CDN or physical-device timings.
-No release, deployment or physical-device acceptance was performed.
+No release, deployment or physical-device acceptance was performed at this stage.
 
 ### Cake and title-loadout regression fixes
 
@@ -312,7 +312,7 @@ ULTRA_OUT=.playwright-mcp/ultra-contact-core ULTRA_REFERENCE=.playwright-mcp/ult
 ```
 
 These are local browser checks with test skins, not physical-phone or
-authenticated live-profile acceptance. No release was requested or published.
+authenticated live-profile acceptance. These checks preceded release authorisation.
 
 The six core browser regressions also passed, giving 14 browser cases for
 this pass. Desktop/portrait/landscape fixed-input traces matched the captured
@@ -335,3 +335,31 @@ capacity/recovery checks. All six core cases passed again, including three
 unchanged gameplay traces and context restoration. All 82 unit tests and
 the final client/server builds passed. The existing Blender master and
 runtime model are unchanged; the rotation uses their full spherical UVs.
+
+## Authorised release integration, 2026-10-11
+
+The user requested commit, push, merge and deployment. The graphics branch
+includes the already deployed score-recovery work from PR #1 rather than
+replacing it with the earlier client or API. All 101 unit tests and both
+typechecks/builds pass. Six core gameplay checks still match the original
+fixed-input traces and cover pause, reduced effects, context restoration,
+missing assets, saved vector settings and absent WebGL. All eight contact
+rotation/skin/fallback checks pass after integration, including bounded caches.
+Eight pointer-driven menu launch cases and four cake collection cases pass:
+all three selected ships reach actual play, Daily keeps its fixed class until
+a personal selection, and all six original slices render and collect.
+
+Production uses the current `stall` host at `62.238.98.53`, with releases under
+`/opt/neonsentinel`. The previous deployment host was reassigned. Model
+extensions are excluded from SPA rewrites; GLB/glTF have explicit MIME types.
+The existing Neon vhost is backed up before a scoped update and Caddy validation.
+Smoke captures and Chrome profiles remain under the ignored repository evidence
+directory. No release build or deployment staging belongs in `/tmp`.
+
+Release uses the checked-client artifact and full file manifest from successful
+CI for the exact merged revision. The verified running score API is preserved
+without a restart. Public verification compares changed runtime assets with
+the checked bytes, checks missing-model 404s, then uses fresh browser contexts
+with service workers blocked for actual menu launches, movement/fire,
+rotation, pause, reduced motion, boss graphics and phone fallbacks. Those live
+results belong in `.playwright-mcp/ship-live/`; physical phones remain unqualified.
