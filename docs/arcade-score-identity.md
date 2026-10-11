@@ -196,3 +196,22 @@ publication beyond ten minutes. Earlier provider timeouts remain recorded,
 without an established cause for the subsequent successful attempt. See
 [earned recovery](evidence/neon-earned-recovery-046a822.json) and
 [fresh display checks](evidence/neon-earned-recovery-ui-046a822.json).
+
+
+## Real delayed Neon recovery qualified
+
+An actual My Signet journey on published `046a822` now holds a normally earned
+5,566-point run beyond eleven minutes (662,617ms at the retry sequence). The
+arcade parent closes before play. Explicit original-account reconnect and reload
+preserve the receipt; after the delay, another explicit same-account approval
+and selected retry make exactly one canonical NIP-98 claim. The request retains
+the original finished timestamp exactly, returns HTTP 200 with six of seven
+relay acknowledgements, and clears the receipt only after positive publication.
+
+Independent verification confirms the game authority, player and score. Fresh
+relay-backed displays in both editions show the same event. No game state or
+receipt was seeded. The 600 browser uses forced Hetzner DNS; standard public DNS
+is used normally. This proves the actual delayed desktop provider journey,
+separate from private seven-day/restart API tests and physical qualification.
+See [earned delayed recovery](evidence/neon-earned-delayed-recovery-046a822.json)
+and [fresh display checks](evidence/neon-earned-delayed-recovery-ui-046a822.json).
