@@ -10,6 +10,7 @@
     "build:client": "vite build",
     "build:server": "vite build --config vite.server.config.ts",
     "smoke:visual": "node tools/visual-smoke.mjs",
+    "check:ultra": "node tools/ultra-check.mjs",
     "typecheck": "tsc --noEmit && tsc --noEmit --project tsconfig.server.json",
     "test": "vitest run",
     "sync:sdk": "node tools/sync-signet-sdk.mjs",

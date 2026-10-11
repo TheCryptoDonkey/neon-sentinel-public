@@ -43,6 +43,9 @@ import { consumeArcadeHandoff } from './arcade-handoff.js';
 import { getTuning, getTuningReadout } from './tuning.js';
 import type { MeshFrame } from './mesh-overlay.js';
 import { drawEnemySprite, drawShipSprite } from './sprite-art.js';
+import { drawSculptedPickup, sculptedImage, sculptedArtDiagnostics } from './authored-sprites.js';
+import { drawPickupFrame, drawValuePickupFallback } from './pickup-presentation.js';
+import { drawContactSphere, contactArtDiagnostics, contactRotation } from './contact-art.js';
 import {
   CAKE_PICKUP_URLS,
   draw600bMedallion,
@@ -55,7 +58,7 @@ import {
   ROSE_PICKUP_URL,
   WHOLE_CAKE_PICKUP_URL,
 } from './pickup-icons.js';
-import { getReducedEffects, getTheme, getVisualTier, setVisualTier, setupVisualSettings } from './visual-settings.js';
+import { getReducedEffects, getTheme, getVisualTier, setupVisualSettings } from './visual-settings.js';
 import { getValueForValueConfig, getValueForValueQrCanvas } from './value-for-value.js';
 import {
   initV4vAsk,
@@ -107,6 +110,7 @@ declare global {
     neonSentinelFeelReport?: FeelReport;
     neonSentinelScoreStatus?: string;
     neonSentinelVisualAssets?: VisualAssetReadiness;
+    neonSentinelPresentationCheck?: () => { stateUnchanged: boolean; cameraUnchanged: boolean; rngCalls: number };
     neonSentinelDebugFrame?: () => ReturnType<typeof makeDebugFrame>;
     neonSentinelFxLabFire?: (key: FxLabKey) => void;
     neonSentinelTrace?: PlaytestTrace;
@@ -1043,6 +1047,8 @@ let titleStartFinalFrom = 0;
 let state = makeState();
 let cameraX = state.ship.x;
 let lastT = performance.now();
+// Presentation has its own clock. Pause freezes art without touching the sim.
+let presentationTime = lastT / 1000;
 let acc = 0;
 // Fraction of a sim step elapsed at render time; drives motion interpolation
 // so 90/120Hz displays get smooth movement from the fixed 60Hz simulation.
@@ -2240,6 +2246,25 @@ function seedDebugCombatScene(): void {
   state.message = 'COMBAT VISUAL TEST';
   state.messageUntil = 1.2;
   state.threatPulse = 0.72;
+  if (import.meta.env.DEV && QUERY.has('artfamilies')) {
+    // Local, unranked review scene. Actual simulation entities and keyboard
+    // input; ordinary ?combat and production runs keep their original seed.
+    const aliens = state.enemies.filter(e => e.type !== 'carrier');
+    aliens.forEach((e,i) => {
+      e.x = wrapX(state.ship.x - 490 + i * 140);
+      e.y = PLAY_TOP + 385;
+    });
+    const kinds: BeaconKind[] = ['life','shield','relay','charge','zap','net','multi','600b','rose','cake-piece','whole-cake','cult','fourtwenty','scooter','timelock'];
+    state.beacons = kinds.map((kind,i) => ({kind,x:wrapX(state.ship.x-440+(i%5)*220),y:PLAY_TOP+50+Math.floor(i/5)*100,age:0,value:1,ttl:60,spriteIndex:0}));
+    state.message = '';
+    state.messageUntil = 0;
+  }
+  if (import.meta.env.DEV && QUERY.has('cakes')) {
+    // Six real, collectible variants for the local presentation regression.
+    state.beacons = CAKE_PICKUP_URLS.map((_,spriteIndex) => ({kind:'cake-piece',x:wrapX(state.ship.x-300+spriteIndex*120),y:state.ship.y,age:0,value:1,ttl:60,spriteIndex}));
+    state.message = '';
+    state.messageUntil = 0;
+  }
 }
 
 // ?fxlab: fires one arcade effect at a time, cycling through the sequence
@@ -2486,6 +2511,7 @@ function loop(now: number): void {
   const rawMs = now - lastT;
   const dt = Math.min(MAX_DT, rawMs / 1000);
   lastT = now;
+  if (state.phase !== 'paused' && !document.hidden) presentationTime += Math.max(0, dt);
   sampleFramePerf(rawMs);
   pollGamepads();
   // Freeze-frame: hold the simulation but keep painting (the shake oscillation
@@ -2494,7 +2520,7 @@ function loop(now: number): void {
   // fast-forward, and no rand()/update calls run — daily determinism intact.
   if (state.hitstop > 0 && state.phase === 'playing') {
     state.hitstop = Math.max(0, state.hitstop - dt);
-    render(now / 1000);
+    render(presentationTime);
     requestAnimationFrame(loop);
     return;
   }
@@ -2506,7 +2532,7 @@ function loop(now: number): void {
   }
   syncMusicToState();
   renderAlpha = clamp(acc / STEP, 0, 1);
-  render(now / 1000);
+  render(presentationTime);
   requestAnimationFrame(loop);
 }
 
@@ -2523,6 +2549,7 @@ let qualityDemotions = 0;
 let renderQualityLow = COARSE_POINTER || (navigator.hardwareConcurrency ?? 8) <= 4;
 
 function sampleFramePerf(rawMs: number): void {
+  if (state.phase !== 'playing' || document.hidden) return;
   if (!Number.isFinite(rawMs) || rawMs <= 0 || rawMs > 250) return;
   frameEmaMs += (rawMs - frameEmaMs) * 0.08;
   if (!renderQualityLow && frameEmaMs > QUALITY_SLOW_MS) {
@@ -5870,15 +5897,13 @@ function requestMeshOverlay(): void {
   meshAttempted = true;
   void loadMeshOverlay().then(module => module.ensureMeshOverlay({
     onContextLost: () => {
-      // iOS drops WebGL contexts under memory pressure; fall back to the 2D
-      // vector tier rather than leaving a frozen overlay on screen.
-      setVisualTier('vector');
-      meshAttempted = false;
+      // Temporarily draw vector art until the existing context is restored.
+      // Runtime failure must not overwrite the player's saved art preference.
       window.dispatchEvent(new CustomEvent('neonsentinel:mesh-status', { detail: { label: '3D CONTEXT LOST · USING VECTOR' } }));
     },
   })).catch(err => {
-    meshAttempted = false;
     console.warn('Mesh overlay unavailable', err);
+    window.dispatchEvent(new CustomEvent('neonsentinel:mesh-status', { detail: { label: '3D UNAVAILABLE · USING VECTOR' } }));
   });
 }
 
@@ -5927,6 +5952,8 @@ function makeMeshFrame(t: number): MeshFrame {
     cameraX,
     dpr: renderPixelRatio(),
     t,
+    reducedEffects: getReducedEffects(),
+    lowCost: lowCostRender(),
     ship,
     citizens: meshActorsHidden() ? [] : state.signals.map(signal => {
       const threat = contactThreat(signal);
@@ -5952,6 +5979,8 @@ function makeMeshFrame(t: number): MeshFrame {
       type: enemy.type === 'forgery' ? 'spoof' : enemy.type,
       sizeScale: (enemy.type === 'sybil' && enemy.maxHp <= 1 ? 0.62 : 1) * trollGrowthScale(enemy),
       popFlash: trollPopFlash(enemy),
+      hp: enemy.hp,
+      maxHp: enemy.maxHp,
       stolenAvatarUrl: enemy.forgedPicture,
       x: enemy.x,
       y: enemy.y,
@@ -6023,7 +6052,7 @@ function meshFrameShip(viewport: VisibleCanvasRect, t: number): MeshFrame['ship'
       shieldHits: 0,
       heat: 0.08,
       turnCue: titleMenuField === 'ship' ? 0.42 : 0.18,
-      shipClass: selectedShip,
+      shipClass: titleShipClass(),
       destroyed: false,
     };
   }
@@ -6045,7 +6074,7 @@ function meshFrameShip(viewport: VisibleCanvasRect, t: number): MeshFrame['ship'
 
 function makeDebugFrame() {
   const viewport = visibleCanvasRect();
-  const frame = makeMeshFrame(performance.now() / 1000);
+  const frame = makeMeshFrame(presentationTime);
   const activeEnemies = state.enemies.filter(e => e.alive && e.type !== 'carrier');
   const carrier = activeCarrier();
   const visibleEnemies = activeEnemies.filter(e => Math.abs(wrapDelta(e.x, cameraX)) < VIEW_W * 0.56);
@@ -6057,6 +6086,14 @@ function makeDebugFrame() {
     .filter(item => item.threat.targeted || item.signal.status === 'carried' || item.signal.status === 'falling');
   return {
     ...frame,
+    presentation: {
+      renderer: meshModule?.isMeshOverlayReady() && getVisualTier() === 'mesh' ? 'mesh' : 'vector',
+      reducedEffects: getReducedEffects(),
+      lowCost: lowCostRender(),
+      sculptedArt: sculptedArtDiagnostics(),
+      contacts: contactArtDiagnostics(),
+      mesh: meshModule?.getMeshDiagnostics() ?? null,
+    },
     phase: state.phase,
     demo: state.demo,
     daily: state.daily,
@@ -6102,6 +6139,8 @@ function makeDebugFrame() {
     titleMenu: {
       field: titleMenuField,
       ship: selectedShip,
+      launchShip: titleShipClass(),
+      dailyArmed,
       skill: selectedSkill,
       visual: getVisualTier(),
       paymentModalOpen: titlePaymentModalOpen,
@@ -6430,6 +6469,7 @@ function drawWorld(t: number, meshMode: boolean): void {
 }
 
 function drawRelayWeather(t: number): void {
+  if (getReducedEffects()) return;
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
   const count = lowCostRender() ? 12 : 34;
@@ -6804,7 +6844,7 @@ function drawMeshActionGrade(t: number): void {
   ctx.fillRect(0, PLAY_TOP - 10, VIEW_W, GROUND_BASE - PLAY_TOP + 76);
 
   const speed = Math.abs(state.ship.vx);
-  const alpha = clamp((speed - 760) / 900, 0, 0.032);
+  const alpha = getReducedEffects() ? 0 : clamp((speed - 760) / 900, 0, 0.032);
   if (alpha > 0) {
     const dir = state.ship.vx >= 0 ? -1 : 1;
     ctx.strokeStyle = `rgba(255,245,216,${alpha.toFixed(3)})`;
@@ -6823,6 +6863,7 @@ function drawMeshActionGrade(t: number): void {
 }
 
 function drawVelocityField(t: number): void {
+  if (getReducedEffects()) return;
   const speed = Math.abs(state.ship.vx);
   if (state.phase !== 'playing' || speed < 760) return;
   const alpha = clamp((speed - 760) / 900, 0, 0.055);
@@ -7305,17 +7346,11 @@ function drawSignal(s: Signal, t: number): void {
   ctx.shadowBlur = 0;
   ctx.globalAlpha = alpha;
   const profileImage = profileImageForSignal(s);
-  if (profileImage) {
-    drawProfileImageCircle(profileImage, 0, 0, bodyRadius * VECTOR_PROFILE_AVATAR_RADIUS_SCALE, ringColour);
-  } else {
-    ctx.fillStyle = 'rgba(2,4,11,0.66)';
-    ctx.beginPath();
-    ctx.arc(0, 0, bodyRadius * 0.52, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#02040b';
-    ctx.strokeStyle = colourWithAlpha('#fff5d8', 0.8);
-    ctx.lineWidth = 0.8;
-    ctx.stroke();
+  drawContactSphere(ctx, profileImage, bodyRadius * VECTOR_PROFILE_AVATAR_RADIUS_SCALE, colour, contactRotation(t,s.id,getReducedEffects()));
+  ctx.strokeStyle = ringColour;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(0,0,bodyRadius,0,Math.PI*2); ctx.stroke();
+  if (!profileImage) {
     ctx.fillStyle = '#fff5d8';
     ctx.shadowColor = '#02040b';
     ctx.shadowBlur = 3;
@@ -7390,15 +7425,7 @@ function drawMeshWorldLabels(t: number, showContactLayer: boolean): void {
     if (b.kind === 'life') continue;
     const sx = screenX(b.x);
     if (sx < -80 || sx > VIEW_W + 80) continue;
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.font = `900 10px ${FONT_MONO}`;
-    ctx.shadowColor = beaconRingColour(b.kind);
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = b.kind === 'rose' ? '#ffb3c7' : '#fff5d8';
-    fitCanvasText(beaconLabel(b.kind), sx, b.y + 60, 96);
-    ctx.restore();
+    drawBeaconCaption(b, sx, b.y + 60);
   }
 }
 
@@ -7461,8 +7488,8 @@ function drawMeshContactLabels(t: number): void {
 function drawTrollPopFlash(e: Enemy, sx: number, scale: number, dir: -1 | 1, bank: number, t: number): void {
   const pop = trollPopFlash(e);
   if (pop <= 0) return;
-  const hue = (t * 540) % 360;
-  const flicker = 0.55 + Math.sin(t * 26 + e.phase) * 0.45;
+  const hue = getReducedEffects() ? 340 : (t * 540) % 360;
+  const flicker = getReducedEffects() ? 0.15 : 0.55 + Math.sin(t * 26 + e.phase) * 0.45;
   ctx.save();
   ctx.translate(sx, e.y);
   ctx.rotate(bank);
@@ -7483,7 +7510,10 @@ function drawEnemy(e: Enemy, t: number): void {
   if (sx < viewport.x - 110 || sx > viewport.x + viewport.w + 110) return;
   const colour = enemyColour(e.type);
   const actorScale = getTuning().actorScale;
-  const spriteScale = actorScale * (e.type === 'carrier' ? 0.48 : e.type === 'hunter' ? 0.62 : e.type === 'jammer' ? 0.62 : e.type === 'forgery' ? 0.58 : e.type === 'spammer' ? 0.6 : e.type === 'sybil' ? (e.maxHp > 1 ? 0.6 : 0.38) : e.type === 'troll' ? 0.8 : 0.6) * trollGrowthScale(e);
+  const authoredScale = e.type === 'carrier' ? undefined : sculptedImage(e.type)
+    ? (e.type === 'hunter' ? 1.08 : e.type === 'jammer' ? 1.02 : e.type === 'forgery' ? 1 : e.type === 'spammer' ? 1.04 : e.type === 'sybil' ? (e.maxHp > 1 ? 1 : 0.62) : e.type === 'troll' ? 0.8 : 1.03)
+    : undefined;
+  const spriteScale = actorScale * (authoredScale ?? (e.type === 'carrier' ? 0.98 : e.type === 'hunter' ? 0.62 : e.type === 'jammer' ? 0.62 : e.type === 'forgery' ? 0.58 : e.type === 'spammer' ? 0.6 : e.type === 'sybil' ? (e.maxHp > 1 ? 0.6 : 0.38) : e.type === 'troll' ? 0.8 : 0.6)) * trollGrowthScale(e);
   const face = e.face;
   const turn = clamp(e.turnCue, 0, 1);
   const turnPhase = 1 - turn;
@@ -7491,6 +7521,7 @@ function drawEnemy(e: Enemy, t: number): void {
   const bank = clamp(e.vy / 760, -0.18, 0.18) + renderFace * Math.sin(turnPhase * Math.PI) * (e.type === 'carrier' ? 0.1 : 0.24);
   if (HI_DPI_SPRITE_ACTORS) {
     drawEnemySprite({
+      reducedEffects: getReducedEffects(),
       ctx,
       type: e.type,
       x: sx,
@@ -8193,6 +8224,7 @@ function drawShip(t: number): void {
   const heat = clamp(ship.heat, 0, 1);
   if (HI_DPI_SPRITE_ACTORS) {
     drawShipSprite({
+      reducedEffects: getReducedEffects(),
       ctx,
       shipClass: state.shipClass,
       x: sx,
@@ -8743,9 +8775,10 @@ function drawLaser(laser: Laser): void {
 function drawBeacon(b: Beacon, t: number): void {
   const sx = screenX(b.x);
   if (sx < -80 || sx > VIEW_W + 80) return;
-  const rot = t * 3.8 + b.age * 2;
+  const calm = getReducedEffects();
+  const rot = calm ? 0 : t * 3.8 + b.age * 2;
   const sprite = beaconSprite(b);
-  const pulse = Math.sin(t * 7 + b.age) * 0.5 + 0.5;
+  const pulse = calm ? 0.5 : Math.sin(t * 7 + b.age) * 0.5 + 0.5;
   const life = b.kind === 'life';
   const colour = beaconColour(b.kind);
   const scale = vectorBeaconScale(b);
@@ -8754,13 +8787,11 @@ function drawBeacon(b: Beacon, t: number): void {
   ctx.scale(scale, scale);
   ctx.shadowColor = colour;
   ctx.shadowBlur = (life ? 24 : 34) + pulse * (life ? 8 : 12);
-  ctx.strokeStyle = beaconRingColour(b.kind);
-  ctx.lineWidth = 2.2;
-  ctx.beginPath();
-  ctx.arc(0, 0, (life ? 35 : 48) + pulse * (life ? 3 : 5), 0, Math.PI * 2);
-  ctx.stroke();
+  drawPickupFrame(ctx, life ? 38 : 54, beaconRingColour(b.kind), b.kind === 'timelock');
 
-  if (life) {
+  if (drawSculptedPickup(ctx, b.kind, calm ? 0 : Math.sin(rot * 0.45) * 0.07, b.spriteIndex)) {
+    // Shared Blender plate; labels and collection feedback remain live.
+  } else if (life) {
     drawLifeBeacon(rot, pulse);
   } else if (sprite && sprite.complete && sprite.naturalWidth > 0) {
     const size = vectorBeaconSpriteSize(b.kind);
@@ -8777,6 +8808,8 @@ function drawBeacon(b: Beacon, t: number): void {
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
     ctx.restore();
+  } else if (b.kind === 'rose' || b.kind === 'cake-piece' || b.kind === 'whole-cake') {
+    drawValuePickupFallback(ctx, b.kind);
   } else if (b.kind === 'shield') {
     drawShieldBeacon(rot, pulse, ctx);
   } else if (isStandardBeaconKind(b.kind)) {
@@ -8799,12 +8832,26 @@ function drawBeacon(b: Beacon, t: number): void {
     draw600bMedallion(rot, ctx);
   }
 
-  ctx.shadowBlur = 8;
-  ctx.fillStyle = life ? '#d7ffe1' : b.kind === 'rose' ? '#ffb3c7' : '#fff5d8';
+  if (!life) drawBeaconCaption(b, 0, 60);
+  ctx.restore();
+}
+
+function drawBeaconCaption(b: Beacon, x: number, y: number): void {
+  ctx.save();
+  ctx.shadowBlur = 0;
   ctx.font = `900 10px ${FONT_MONO}`;
+  const label = beaconLabel(b.kind);
+  const w = Math.min(106, ctx.measureText(label).width + 14);
+  ctx.fillStyle = 'rgba(2,8,17,0.82)';
+  ctx.fillRect(x - w / 2, y - 4, w, 17);
+  ctx.fillStyle = beaconRingColour(b.kind);
+  ctx.globalAlpha = 0.65;
+  ctx.fillRect(x - w / 2, y + 12, w, 1);
+  ctx.globalAlpha = 1;
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  if (!life) ctx.fillText(beaconLabel(b.kind), 0, 54);
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = b.kind === 'timelock' ? '#ffadb6' : '#fff5d8';
+  ctx.fillText(label, x, y, w - 8);
   ctx.restore();
 }
 
@@ -9058,6 +9105,18 @@ function drawParticle(p: Particle): void {
   const life = clamp(p.ttl / Math.max(0.001, p.ttl + p.age), 0, 1);
   const load = particleLoad();
   if (load > PARTICLE_CRITICAL_LOAD && (p.kind === 'spark' || p.kind === 'beam') && life < 0.3) return;
+  if (getReducedEffects() && (p.kind === 'flash' || p.kind === 'shockwave' || p.kind === 'ring' || p.kind === 'starflare' || p.kind === 'core' || p.kind === 'fireball')) {
+    // Keep the event's location/lifetime readable without expanding bright blooms.
+    ctx.save();
+    ctx.globalAlpha = life * 0.45;
+    ctx.strokeStyle = p.colour;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(sx, p.y, Math.min(24, Math.max(5, p.size * 0.35)), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
   // Canvas shadows cost a full offscreen blur pass per shadowed draw, and
   // particles are by far the most numerous draws (the 2026-07 desktop jitter
   // profiled at ~3x frame cost from shadows alone). Gradient kinds bloom on
@@ -11470,6 +11529,32 @@ function toggleDailyGauntlet(): void {
     : titleReadyStatus();
 }
 
+function titleShipClass(): ShipClass {
+  return dailyArmed ? 'interceptor' : selectedShip;
+}
+
+function titleSkill(): Skill {
+  return dailyArmed ? 'normal' : selectedSkill;
+}
+
+function selectTitleShip(ship: ShipClass): void {
+  selectedShip = ship;
+  // Choosing a personal loadout means an ordinary run. Daily entries keep
+  // their shared Interceptor/Normal rules when explicitly selected.
+  if (dailyArmed) {
+    dailyArmed = false;
+    titleStatus = `${shipSpec(ship).label} SELECTED · STANDARD RUN`;
+  }
+}
+
+function selectTitleSkill(skill: Skill): void {
+  selectedSkill = skill;
+  if (dailyArmed) {
+    dailyArmed = false;
+    titleStatus = `${skillSpec(skill).label} SELECTED · STANDARD RUN`;
+  }
+}
+
 function titleMenuLayout(viewport: VisibleCanvasRect = visibleCanvasRect()): TitleMenuLayout {
   const portrait = usePortraitHud(viewport);
   const cx = portrait ? viewport.centerX : VIEW_W / 2;
@@ -11566,10 +11651,10 @@ function titleMenuLayout(viewport: VisibleCanvasRect = visibleCanvasRect()): Tit
     h: startH,
   };
   return {
-    shipCard: { action: 'ship-card', label: shipSpec(selectedShip).label, ship: selectedShip, x: cardX, y: shipY, w: cardW, h: shipH },
+    shipCard: { action: 'ship-card', label: shipSpec(titleShipClass()).label, ship: titleShipClass(), x: cardX, y: shipY, w: cardW, h: shipH },
     shipPrev: { action: 'ship-prev', label: '<', x: leftArrowX, y: shipY + shipH / 2 - shipArrowH / 2, w: arrowW, h: shipArrowH },
     shipNext: { action: 'ship-next', label: '>', x: rightArrowX, y: shipY + shipH / 2 - shipArrowH / 2, w: arrowW, h: shipArrowH },
-    pressureCard: { action: 'pressure-card', label: skillSpec(selectedSkill).label, skill: selectedSkill, x: cardX, y: pressureY, w: cardW, h: pressureH },
+    pressureCard: { action: 'pressure-card', label: skillSpec(titleSkill()).label, skill: titleSkill(), x: cardX, y: pressureY, w: cardW, h: pressureH },
     pressurePrev: { action: 'pressure-prev', label: '<', x: leftArrowX, y: pressureY + pressureH / 2 - pressureArrowH / 2, w: arrowW, h: pressureArrowH },
     pressureNext: { action: 'pressure-next', label: '>', x: rightArrowX, y: pressureY + pressureH / 2 - pressureArrowH / 2, w: arrowW, h: pressureArrowH },
     guestButton,
@@ -11713,13 +11798,14 @@ function drawTitleShipPreview(shipClass: ShipClass, button: TitleMenuButton, t: 
   ctx.fill();
   ctx.restore();
   drawShipSprite({
+    reducedEffects: getReducedEffects(),
     ctx,
     shipClass,
     x,
     y,
     dir: 1,
     scale: compact ? 0.56 : 0.78,
-    bank: Math.sin(t * 1.8) * 0.45,
+    bank: getReducedEffects() ? 0 : Math.sin(t * 1.8) * 0.45,
     turn: titleMenuField === 'ship' ? 0.42 : 0.18,
     thrust: titleMenuField === 'ship' ? 0.55 : 0.28,
     heat: 0.08,
@@ -12394,7 +12480,7 @@ function handleTitlePointerAction(x: number, y: number): boolean {
   if (button.action === 'pressure-card') {
     titleMenuField = 'pressure';
     const skill = titlePressureSkillAt(button, x, y, usePortraitHud(visibleCanvasRect()));
-    if (skill) selectedSkill = skill;
+    if (skill) selectTitleSkill(skill);
     playAudio('lock', 0.36);
     return true;
   }
@@ -14564,11 +14650,11 @@ function cycleTitleMenuChoice(delta: number): void {
 
 function cycleTitleMenuChoiceFor(field: TitleMenuField, delta: number): void {
   if (field === 'ship') {
-    const index = SHIPS.findIndex(ship => ship.id === selectedShip);
-    selectedShip = SHIPS[wrapIndex(index + delta, SHIPS.length)]?.id ?? selectedShip;
+    const index = SHIPS.findIndex(ship => ship.id === titleShipClass());
+    selectTitleShip(SHIPS[wrapIndex(index + delta, SHIPS.length)]?.id ?? selectedShip);
   } else if (field === 'pressure') {
-    const index = SKILLS.findIndex(skill => skill.id === selectedSkill);
-    selectedSkill = SKILLS[wrapIndex(index + delta, SKILLS.length)]?.id ?? selectedSkill;
+    const index = SKILLS.findIndex(skill => skill.id === titleSkill());
+    selectTitleSkill(SKILLS[wrapIndex(index + delta, SKILLS.length)]?.id ?? selectedSkill);
   }
 }
 
@@ -15058,22 +15144,22 @@ window.addEventListener('keydown', ev => {
       return;
     }
     if (ev.code === 'Digit1') {
-      selectedShip = 'interceptor';
+      selectTitleShip('interceptor');
       titleMenuField = 'ship';
     } else if (ev.code === 'Digit2') {
-      selectedShip = 'guardian';
+      selectTitleShip('guardian');
       titleMenuField = 'ship';
     } else if (ev.code === 'Digit3') {
-      selectedShip = 'heavy';
+      selectTitleShip('heavy');
       titleMenuField = 'ship';
     } else if (ev.code === 'Digit4') {
-      selectedSkill = 'cadet';
+      selectTitleSkill('cadet');
       titleMenuField = 'pressure';
     } else if (ev.code === 'Digit5') {
-      selectedSkill = 'normal';
+      selectTitleSkill('normal');
       titleMenuField = 'pressure';
     } else if (ev.code === 'Digit6') {
-      selectedSkill = '600b';
+      selectTitleSkill('600b');
       titleMenuField = 'pressure';
     }
   }
@@ -15420,6 +15506,21 @@ if (DEBUG_MUSIC) {
   });
 }
 window.neonSentinelDebugFrame = makeDebugFrame;
+if (import.meta.env.DEV) {
+  window.neonSentinelPresentationCheck = () => {
+    const before = JSON.stringify(state);
+    const cameraBefore = cameraX;
+    const source = randSource;
+    let rngCalls = 0;
+    randSource = () => { rngCalls++; throw new Error('Rendering consumed gameplay RNG'); };
+    try {
+      render(presentationTime);
+      return { stateUnchanged: before === JSON.stringify(state), cameraUnchanged: cameraBefore === cameraX, rngCalls };
+    } finally {
+      randSource = source;
+    }
+  };
+}
 window.neonSentinelClaimLastScore = claimAndPublishLastScore;
 window.neonSentinelScoreStatus = scoreStatus;
 window.relaykeepClaimLastScore = claimAndPublishLastScore;

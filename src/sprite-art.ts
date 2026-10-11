@@ -1,13 +1,15 @@
+import { sculptedImage } from './authored-sprites.js';
 export type SpriteEnemyType = 'abductor' | 'forgery' | 'jammer' | 'hunter' | 'carrier' | 'spammer' | 'sybil' | 'troll';
 export type SpriteShipClass = 'interceptor' | 'guardian' | 'heavy';
 
 interface SpriteAsset {
-  canvas: HTMLCanvasElement;
+  canvas: HTMLCanvasElement | HTMLImageElement;
   w: number;
   h: number;
 }
 
 interface ShipSpriteOptions {
+  reducedEffects?: boolean;
   ctx: CanvasRenderingContext2D;
   shipClass: SpriteShipClass;
   x: number;
@@ -22,6 +24,7 @@ interface ShipSpriteOptions {
 }
 
 interface EnemySpriteOptions {
+  reducedEffects?: boolean;
   ctx: CanvasRenderingContext2D;
   type: SpriteEnemyType;
   x: number;
@@ -42,11 +45,28 @@ interface EnemySpriteOptions {
 const DPR = Math.min(3, Math.max(2, Math.ceil(window.devicePixelRatio || 2)));
 const shipCache = new Map<SpriteShipClass, SpriteAsset>();
 const enemyCache = new Map<SpriteEnemyType, SpriteAsset>();
+// The same Blender masters supply vector/context-loss art. Four finite caches;
+// failed or still-loading images keep the immediate procedural sprite.
+const bakedFlight = new Map<string, SpriteAsset>();
+for (const kind of ['interceptor', 'guardian', 'heavy', 'carrier']) {
+  const image = new Image();
+  image.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(image, 0, 0);
+    const w = kind === 'carrier' ? 320 : 190;
+    bakedFlight.set(kind, { canvas, w, h: w * canvas.height / canvas.width });
+  };
+  image.src = `/models/${kind}-v2.webp`;
+}
 
 export function drawShipSprite(opts: ShipSpriteOptions): void {
   const { ctx, x, y, dir, scale, bank, turn, thrust, heat, t } = opts;
   const sprite = shipSprite(opts.shipClass);
-  const pulse = 0.5 + Math.sin(t * 42) * 0.5;
+  const pulse = opts.reducedEffects ? 0.5 : 0.5 + Math.sin(t * 42) * 0.5;
 
   ctx.save();
   ctx.translate(x, y);
@@ -119,9 +139,10 @@ export function drawEnemySprite(opts: EnemySpriteOptions): void {
   const { ctx, type, x, y, dir, scale, bank, turn, intent, muzzle, phase, t, hot } = opts;
   const sprite = enemySprite(type);
   const colour = enemyColour(type);
-  const pulse = 0.5 + Math.sin(t * 8 + phase) * 0.5;
+  const pulse = opts.reducedEffects ? 0.5 : 0.5 + Math.sin(t * 8 + phase) * 0.5;
+  const authored = type === 'carrier' ? bakedFlight.has('carrier') : !!sculptedImage(type);
   const turnBlade = Math.sin((1 - turn) * Math.PI);
-  const narrow = turn > 0.025 ? 0.52 + Math.abs((1 - turn) - 0.5) * 0.9 : 1;
+  const narrow = authored ? 1 - turn * 0.06 : turn > 0.025 ? 0.52 + Math.abs((1 - turn) - 0.5) * 0.9 : 1;
 
   ctx.save();
   ctx.translate(x, y);
@@ -148,10 +169,10 @@ export function drawEnemySprite(opts: EnemySpriteOptions): void {
 
   ctx.scale(dir * scale * narrow, scale * (1 + turnBlade * 0.08));
   ctx.shadowColor = colour;
-  ctx.shadowBlur = type === 'carrier' ? 22 : 15;
+  ctx.shadowBlur = authored ? 0 : type === 'carrier' ? 22 : 15;
   ctx.drawImage(sprite.canvas, -sprite.w / 2, -sprite.h / 2, sprite.w, sprite.h);
 
-  if (turn > 0.035) {
+  if (turn > 0.035 && !authored) {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = 0.24 + turnBlade * 0.58;
@@ -213,13 +234,15 @@ export function drawEnemySprite(opts: EnemySpriteOptions): void {
 }
 
 function shipSprite(shipClass: SpriteShipClass): SpriteAsset {
+  const baked = bakedFlight.get(shipClass);
+  if (baked) return baked;
   const existing = shipCache.get(shipClass);
   if (existing) return existing;
 
   const w = 174;
   const h = 96;
   const asset = makeAsset(w, h);
-  const g = asset.canvas.getContext('2d');
+  const g = (asset.canvas as HTMLCanvasElement).getContext('2d');
   if (!g) throw new Error('Missing 2D context');
   setupSpriteContext(g, w, h);
   drawShipBase(g, shipClass);
@@ -228,12 +251,18 @@ function shipSprite(shipClass: SpriteShipClass): SpriteAsset {
 }
 
 function enemySprite(type: SpriteEnemyType): SpriteAsset {
+  const baked = bakedFlight.get(type);
+  if (baked) return baked;
+  if (type !== 'carrier') {
+    const image = sculptedImage(type);
+    if (image) return { canvas:image, w:160, h:160*image.naturalHeight/image.naturalWidth };
+  }
   const existing = enemyCache.get(type);
   if (existing) return existing;
 
   const carrier = type === 'carrier';
   const asset = makeAsset(carrier ? 300 : 158, carrier ? 146 : 104);
-  const g = asset.canvas.getContext('2d');
+  const g = (asset.canvas as HTMLCanvasElement).getContext('2d');
   if (!g) throw new Error('Missing 2D context');
   setupSpriteContext(g, asset.w, asset.h);
   if (type === 'hunter') drawHunter(g);
