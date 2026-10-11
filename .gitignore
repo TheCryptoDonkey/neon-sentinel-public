@@ -43,3 +43,7 @@ npm-debug.log*
 /time-*.jpeg
 
 neon-recovery-evidence.json
+
+neon-client-manifest.json
+
+neon-keyboard-evidence.json

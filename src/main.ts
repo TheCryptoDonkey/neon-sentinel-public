@@ -1750,7 +1750,7 @@ async function restoreNostrTitleSession(): Promise<void> {
     // Wait for its actual load event without blocking guest play or adopting
     // a restored identity after the player has chosen another session.
     if (!arcadeSession && !window.Signet?.restoreSession) {
-      const script = document.querySelector<HTMLScriptElement>('script[src="/signet/signet-login.iife.js"]');
+      const script = document.querySelector<HTMLScriptElement>('script[src^="/signet/signet-login"]');
       if (script) await new Promise<void>(resolve => {
         const finish = () => {
           clearTimeout(timer);
@@ -2709,7 +2709,7 @@ function update(dt: number): void {
       }
     } else if (state.phase === 'title') {
       if (consumeStart()) void startGuestRunFromTitle();
-      else if (!titleStartInFlight && !titlePaymentModalOpen && !isV4vAskOpen() && performance.now() - titleIdleAt > ATTRACT_DELAY_MS) {
+      else if (!document.querySelector('dialog[open]') && !titleStartInFlight && !titlePaymentModalOpen && !isV4vAskOpen() && performance.now() - titleIdleAt > ATTRACT_DELAY_MS) {
         startAttractRun();
       }
     } else if (consumeStart()) startRun();
@@ -15002,9 +15002,9 @@ window.addEventListener('keydown', ev => {
 window.addEventListener('keydown', ev => {
   unlockGameAudio();
   markPlayerActivity();
-  // The value-for-value ask owns input while it is up — its DOM buttons take
-  // Tab/Enter natively, and nothing here may buffer a start underneath it.
-  if (isV4vAskOpen()) return;
+  // Native dialogs own their keyboard activation. In particular the Signet
+  // picker must receive Enter without starting the game behind its buttons.
+  if (document.querySelector('dialog[open]') || isV4vAskOpen()) return;
   if (attractMode) {
     // Any key ends the demo; the press is consumed so it cannot also start
     // a run or toggle anything on the title underneath.

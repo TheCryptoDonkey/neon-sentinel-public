@@ -31,7 +31,7 @@ try {
         localStorage.setItem(keys, JSON.stringify(initial));
         localStorage.setItem('fixture-seeded', 'yes');
     } window.__fixtureLoginPubkey = pa; }, { initial, keys, pa });
-    await context.route(origin + '/signet/signet-login.iife.js', async (route) => { await new Promise(resolve => setTimeout(resolve, 500)); return route.fulfill({ contentType: 'text/javascript', body: `const original=${JSON.stringify(pa)};const make=(pubkey,dead=false)=>({pubkey,method:'nip07',signer:{signEvent:template=>dead?Promise.reject(Error('fixture-signer-offline')):window.__fixtureSign(template,pubkey)}});window.__fixtureCallbackReads=0;window.__fixtureRestoreReads=0;window.Signet={handleRedirectCallback:async()=>{window.__fixtureCallbackReads++;const mode=sessionStorage.getItem('fixture-callback');return mode==='invalid'?{kind:'invalid'}:mode==='session'?{kind:'session',session:make(original,true)}:{kind:'no-callback'};},restoreSession:async()=>{window.__fixtureRestoreReads++;return make(original,true);},login:async()=>make(window.__fixtureLoginPubkey),logout:async()=>{}};` }); });
+    await context.route(origin + '/signet/signet-login-0.17.3.iife.js', async (route) => { await new Promise(resolve => setTimeout(resolve, 500)); return route.fulfill({ contentType: 'text/javascript', body: `const original=${JSON.stringify(pa)};const make=(pubkey,dead=false)=>({pubkey,method:'nip07',signer:{signEvent:template=>dead?Promise.reject(Error('fixture-signer-offline')):window.__fixtureSign(template,pubkey)}});window.__fixtureCallbackReads=0;window.__fixtureRestoreReads=0;window.Signet={handleRedirectCallback:async()=>{window.__fixtureCallbackReads++;const mode=sessionStorage.getItem('fixture-callback');return mode==='invalid'?{kind:'invalid'}:mode==='session'?{kind:'session',session:make(original,true)}:{kind:'no-callback'};},restoreSession:async()=>{window.__fixtureRestoreReads++;return make(original,true);},login:async()=>make(window.__fixtureLoginPubkey),logout:async()=>{}};` }); });
     await context.route(origin + '/api/claim', async (route) => {
         const request = route.request();
         const e = JSON.parse(Buffer.from(request.headers().authorization.slice(6), 'base64').toString());
@@ -44,7 +44,7 @@ try {
     });
     const assets = [];
     await context.route(origin + '/**', async (route) => { if (route.request().method() !== 'GET')
-        return route.fallback(); const u = new URL(route.request().url()); if (u.pathname === '/signet/signet-login.iife.js')
+        return route.fallback(); const u = new URL(route.request().url()); if (u.pathname === '/signet/signet-login-0.17.3.iife.js')
         return route.fallback(); const file = resolve(dist, '.' + (u.pathname === '/' ? '/index.html' : decodeURIComponent(u.pathname))); if (!file.startsWith(dist + '/'))
         return route.abort(); const body = await readFile(file).catch(() => null); if (!body)
         return route.abort(); if (u.pathname.startsWith('/assets/index-') && u.pathname.endsWith('.js'))

@@ -1,14 +1,16 @@
 import {createRequire} from 'node:module';
-import {copyFileSync,readFileSync} from 'node:fs';
+import {copyFileSync,readFileSync,existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 const require=createRequire(import.meta.url);
 const source=require.resolve('signet-login/iife');
-const target=new URL('../public/signet/signet-login.iife.js',import.meta.url);
+const targets=['signet-login.iife.js','signet-login-0.17.3.iife.js'];
 const hash=value=>createHash('sha256').update(value).digest('hex');
-const expected=readFileSync(source);
-const current=readFileSync(target);
-if(hash(expected)!==hash(current)){
-  if(process.argv.includes('--check'))throw new Error('Signet bundle differs from the lockfile; run npm run sync:sdk and commit the result');
-  copyFileSync(source,target);
+const expected=hash(readFileSync(source));
+for(const name of targets){
+  const target=new URL('../public/signet/'+name,import.meta.url);
+  if(!existsSync(target)||hash(readFileSync(target))!==expected){
+    if(process.argv.includes('--check'))throw new Error('Signet bundle differs from the lockfile; run npm run sync:sdk and commit the result');
+    copyFileSync(source,target);
+  }
 }
-console.log('Signet Login bundle matches the locked package.');
+console.log('Both Signet Login paths match the locked package.');

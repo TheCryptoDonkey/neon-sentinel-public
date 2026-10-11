@@ -41,7 +41,29 @@ and returns to the signed-in title. It does not prove provider reconnect or
 publication. Historical core-only proof remains separately available in
 [evidence](evidence/neon-candidate-closed-parent.json).
 
-This is a draft candidate, not yet published or physically accepted. Hosted CI
-will archive the exact checked client and recovery proof. Actual My Signet
-same-account reconnect, independently visible publication, physical signer
-checks and deployment verification remain required for full consumer acceptance.
+The personal-recovery client `5dcf1b4` is active on Hetzner after hosted CI and
+exact archive checksum verification. All 106 staged client files and 99 preserved
+API files match; the API process remains 480607. Public HTML, version and service
+worker match. Public verification then rejects the fixed SDK URL: it returns the
+previous release's bytes although the origin has the locked new bundle. See
+[partial deployment proof](evidence/neon-live-5dcf1b4-partial.json). That rollout
+is not fully qualified. The follow-up uses a versioned SDK filename, checked
+against the same locked package, to avoid the stale fixed-path asset.
+
+The real SDK picker also exposed two local input failures. Enter on a provider
+button opened the underlying game support prompt and prevented native button
+activation. After guarding keyboard input, the accelerated idle demo still
+started behind the dialog. Both now pass with keyboard and idle modal guards;
+native Escape cancels login and retains the original receipt. See
+[modal regression proof](evidence/neon-sdk-modal-regressions.json). These checks
+use the actual SDK picker with a restored-identity fixture, blocked sockets and
+external writes; they do not prove My Signet provider approval. All 101 unit
+tests, builds, recovery UI and SDK modal checks pass locally.
+
+Hosted CI now archives both the whole client and a hash manifest for every
+checked file, plus its small code archive. This allows reuse of byte-identical
+media without trusting a rebuilt client or downloading large media again.
+The follow-up still requires hosted qualification, public byte verification,
+actual same-account My Signet reconnect/publication and physical acceptance.
+An actual My Signet attempt stopped at initial arcade signer readiness before
+any earned run or claim; it does not qualify recovery.

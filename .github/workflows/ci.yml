@@ -39,6 +39,11 @@ jobs:
           NEON_RECOVERY_EVIDENCE: ${{ github.workspace }}/neon-recovery-evidence.json
         run: npm run test:score-recovery
 
+      - name: Verify real SDK keyboard ownership
+        env:
+          NEON_RECOVERY_EVIDENCE: ${{ github.workspace }}/neon-keyboard-evidence.json
+        run: npm run test:signet-keyboard
+
       - name: Archive checked client
         uses: actions/upload-artifact@v6.0.0
         with:
@@ -52,5 +57,40 @@ jobs:
         with:
           name: score-recovery-proof
           path: neon-recovery-evidence.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Fingerprint every checked client file
+        run: node tools/client-manifest.mjs
+
+      - name: Archive checked client manifest
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: checked-client-manifest
+          path: neon-client-manifest.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Archive checked client code
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: checked-client-code
+          path: |
+            dist/index.html
+            dist/version.json
+            dist/assets/
+            dist/signet/
+            dist/sw.js
+            dist/manifest.webmanifest
+            dist/privacy.html
+            dist/support.html
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Archive SDK keyboard proof
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: signet-keyboard-proof
+          path: neon-keyboard-evidence.json
           retention-days: 14
           if-no-files-found: error
