@@ -1,0 +1,41 @@
+{
+  "baselineSource": "869e80c179b86cf03a07916911a0be4d1532dbbd",
+  "baselineEntrySha256": "b687e3f92dc8a3ec969041d0ca407cb55fad897ec265890466cf35fc61d978b4",
+  "baseline": {
+    "exit": 1,
+    "focusedSavedScores": true,
+    "waitMs": 4000,
+    "actualPhase": "playing",
+    "expectedPhase": "title"
+  },
+  "fixed": {
+    "fixture": "Private seeded public receipt and restored identity; real locked SDK picker, blocked external writes and sockets.",
+    "assets": [
+      {
+        "path": "/assets/index-BuvbURcg.js",
+        "sha256": "003d3e00dd924a1b65cc19b3aabcc64e2ed47ddec60d52434b6c1b7a1d1f5e12"
+      },
+      {
+        "path": "/assets/mesh-overlay-B66tI3R-.js",
+        "sha256": "bf92668542236eae570359bc25efb7aa817a6585a46e36ca8834116bc41b82ad"
+      },
+      {
+        "path": "/assets/three-D0v8yklM.js",
+        "sha256": "c1f53931b5190e7fc2c63c78cbb53e398a3e61b84044e760f68b86b1e087b711"
+      }
+    ],
+    "actualMySignet": false,
+    "physicalDevice": false,
+    "externalWritesBlocked": true,
+    "acceleratedAttract": true,
+    "nativeEnterActivatesSdk": true,
+    "idleDemoBlockedDuringDialog": true,
+    "nativeEscapeCancelsSdk": true,
+    "cancelKeepsOriginalReceipt": true
+  },
+  "additionalPassedAssertions": {
+    "focusedRecoveryControlBlocksIdleDemo": true,
+    "dialogGuardCheckedWithoutControlFocus": true
+  },
+  "deployed": false
+}

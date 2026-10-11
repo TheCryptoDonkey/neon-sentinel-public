@@ -39,11 +39,17 @@ try{
  await page.waitForFunction(()=>!!document.body.dataset.neonPhase && !!window.Signet);
  await page.keyboard.press('Escape');
  await page.waitForFunction(()=>document.body.dataset.neonPhase==='title');
+ await page.locator('#score-recovery-open').focus();
+ await page.waitForTimeout(4000);
+ assert.equal(await page.evaluate(()=>document.body.dataset.neonPhase),'title');
  await page.locator('#score-recovery-open').click();
  await page.locator('#score-recovery-reconnect').click();
  await page.locator('#signet-login-dialog[open]').waitFor();
  await page.locator('button[data-choice="local-signet"]').press('Enter');
  await page.locator('#signet-login-open-signet').waitFor({state:'visible',timeout:5000});
+ // Check the modal guard independently of the focused-control guard.
+ await page.evaluate(()=>document.activeElement?.blur());
+ assert(!await page.evaluate(()=>!!document.activeElement?.closest('button, a[href], input, select, textarea, [contenteditable="true"]')));
  // The supported attract query reduces the idle interval to 2.6 seconds.
  await page.waitForTimeout(4000);
  assert.equal(await page.evaluate(()=>document.body.dataset.neonPhase),'title');
@@ -52,7 +58,7 @@ try{
  await page.locator('#score-recovery-status').filter({hasText:'Reconnect cancelled'}).waitFor();
  assert.deepEqual(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),key),receipts);
  assert.deepEqual(errors,[]);
- const proof={fixture:'Private seeded public receipt and restored identity; real locked SDK picker, blocked external writes and sockets.',assets,actualMySignet:false,physicalDevice:false,externalWritesBlocked:true,acceleratedAttract:true,nativeEnterActivatesSdk:true,idleDemoBlockedDuringDialog:true,nativeEscapeCancelsSdk:true,cancelKeepsOriginalReceipt:true};
+ const proof={fixture:'Private seeded public receipt and restored identity; real locked SDK picker, blocked external writes and sockets.',assets,actualMySignet:false,physicalDevice:false,externalWritesBlocked:true,acceleratedAttract:true,nativeEnterActivatesSdk:true,idleDemoBlockedDuringDialog:true,focusedRecoveryControlBlocksIdleDemo:true,dialogGuardCheckedWithoutControlFocus:true,nativeEscapeCancelsSdk:true,cancelKeepsOriginalReceipt:true};
  await writeFile(process.env.NEON_RECOVERY_EVIDENCE||'/tmp/neon-actual-sdk-keyboard.json',JSON.stringify(proof,null,2)+'\n');
  console.log(JSON.stringify({result:'pass',...proof}));
 }finally{await browser.close();}

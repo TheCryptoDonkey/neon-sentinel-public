@@ -2710,7 +2710,9 @@ function update(dt: number): void {
       }
     } else if (state.phase === 'title') {
       if (consumeStart()) void startGuestRunFromTitle();
-      else if (!document.querySelector('dialog[open]') && !titleStartInFlight && !titlePaymentModalOpen && !isV4vAskOpen() && performance.now() - titleIdleAt > ATTRACT_DELAY_MS) {
+      else if (!document.querySelector('dialog[open]') &&
+        !document.activeElement?.closest('button, a[href], input, select, textarea, [contenteditable="true"]') &&
+        !titleStartInFlight && !titlePaymentModalOpen && !isV4vAskOpen() && performance.now() - titleIdleAt > ATTRACT_DELAY_MS) {
         startAttractRun();
       }
     } else if (consumeStart()) startRun();
@@ -15001,6 +15003,10 @@ function setupAudioLifecycle(): void {
 
 // Physical-keyboard fast path for the arcade name entry (capture phase, so
 // consumed keys never reach the game's own keydown handling below).
+window.addEventListener('pointermove', () => {
+  if (state.phase === 'title') markPlayerActivity();
+}, { passive: true });
+
 window.addEventListener('keydown', ev => {
   if (state.phase !== 'gameover' || gameOverStage !== 'name') return;
   if (ev.metaKey || ev.ctrlKey || ev.altKey) return;

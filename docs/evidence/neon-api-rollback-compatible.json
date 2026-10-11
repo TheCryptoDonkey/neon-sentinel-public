@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "runAgeDays": 7,
+  "restartRecovery": true,
+  "sameEventRepublished": true,
+  "immutableRun": true,
+  "concurrentDeduplication": true,
+  "freshNip98Required": true,
+  "legacyJournalKeyCompatible": true,
+  "legacyMissingEventFailsClosed": true,
+  "corruptHistoryFailsClosed": true,
+  "externalNetwork": false,
+  "liveProvider": false,
+  "deployed": false
+}

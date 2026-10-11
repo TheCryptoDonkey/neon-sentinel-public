@@ -875,7 +875,10 @@ async function appendClaim(stored: StoredClaim, claim: ClaimInput): Promise<void
   await mkdir(dirname(CLAIM_LOG), { recursive: true });
   const file = await open(CLAIM_LOG, 'a', 0o600);
   try {
-    await file.writeFile(`${JSON.stringify({ ...stored, claim })}\n`, { encoding: 'utf8' });
+    // Keep the on-disk lookup key compatible with the previous API for a
+    // rollback. The new loader normalises it to permanent account/run identity.
+    const legacyKey = `${stored.pubkey}:${stored.run_id}:${claim.started_at}:${claim.finished_at}`;
+    await file.writeFile(`${JSON.stringify({ ...stored, key: legacyKey, claim })}\n`, { encoding: 'utf8' });
     await file.sync();
   } finally { await file.close(); }
 }

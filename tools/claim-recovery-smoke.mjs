@@ -75,6 +75,7 @@ try {
   assert.equal(events.length,1);assert(verifyEvent(events[0]));assert(events[0].tags.some(t=>t[0]==='p'&&t[1]===getPublicKey(playerKey)));
   const durable=JSON.parse((await readFile(journal,'utf8')).trim().split('\n')[0]);
   assert.equal(durable.event.id,events[0].id);assert.equal(durable.claim.finished_at,finished);
+  assert.equal(durable.key,`${getPublicKey(playerKey)}:${run.run_id}:${run.started_at}:${run.finished_at}`);
   await stop();await start(true);
   const recovered=await claim({...run});assert.equal(recovered.status,200);assert.equal(recovered.body.published.ok,1);
   assert.equal(recovered.body.score_event_id,first.body.score_event_id);
@@ -100,6 +101,6 @@ try {
   await stop();await writeFile(journal,'corrupt durable history\n');
   await assert.rejects(()=>start(true),/private_api_exited/);
   console.log(JSON.stringify({ok:true,runAgeDays:7,restartRecovery:true,sameEventRepublished:true,immutableRun:true,
-    concurrentDeduplication:true,freshNip98Required:true,legacyMissingEventFailsClosed:true,
+    concurrentDeduplication:true,freshNip98Required:true,legacyJournalKeyCompatible:true,legacyMissingEventFailsClosed:true,
     corruptHistoryFailsClosed:true,externalNetwork:false,liveProvider:false}));
 } finally {await stop();await new Promise(resolve=>registry.close(resolve));await rm(scratch,{recursive:true,force:true});}

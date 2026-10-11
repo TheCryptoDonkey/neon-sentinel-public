@@ -123,3 +123,26 @@ Enter activation, four-second idle hold, Escape cancellation and original
 receipt assertions remain unchanged and pass locally with the actual SDK.
 No product attract timing or keyboard assertions were relaxed. Full hosted
 qualification and both client/API deployment remain required.
+
+The `869e80c` hosted gate also fails before opening login: returning to title
+through Escape does not prevent the accelerated demo hiding the saved-score
+button during setup. A private regression focuses that button and waits four
+seconds; unchanged source switches to playing and hides the focused control.
+The product now blocks idle demos while a DOM control owns keyboard focus,
+and pointer movement resets title inactivity. The focused-control regression
+passes. The actual SDK check separately blurs its active control, verifies no
+interactive control owns focus, then holds the open dialog for four seconds;
+Enter activation and Escape cancellation still pass. See
+[focused-control proof](evidence/neon-focused-recovery-controls.json). This is
+a product correction, not qualification of the earlier hosted failures.
+
+The API journal also retains the previous timestamp-based on-disk key format
+for rollback compatibility. Its new loader normalises that key to permanent
+account/run identity, while an older API can still find a recent accepted
+claim after rollback. The private compiled-API gate verifies the exact legacy
+key and restart/same-event deduplication. See
+[rollback-compatible API proof](evidence/neon-api-rollback-compatible.json).
+A read-only check finds two valid confirmed legacy rows in the default server
+history, with no unconfirmed legacy rows; actual environment/state-path and
+checked-artifact deployment verification remain required. Production remains
+unchanged until the full candidate gate passes.
