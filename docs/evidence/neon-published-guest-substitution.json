@@ -1,0 +1,36 @@
+{
+  "fixture": "Published-client canonical handoff with disposable key, normal gameplay, closed parent. All public non-GET HTTP and relay sockets blocked. No real My Signet or physical acceptance.",
+  "origin": "https://neonsentinel.com",
+  "asset": {
+    "path": "/assets/index-CejSwacQ.js",
+    "status": 200,
+    "sha256": "95f68e940141f8bacce21531d4cf993ab4cfa6487899f166ae0d55d529d1fa89"
+  },
+  "publishedSourceRevision": null,
+  "candidateRepository": "TheCryptoDonkey/neon-sentinel-public",
+  "phase": "closed-parent-signing-timeout",
+  "gameOrScoreStateInjected": false,
+  "externalWritesBlocked": true,
+  "playerPubkey": "cdc18253b6d4214e12939022949650f411100ed592e4e0bfee151ccbf8b91920",
+  "score": 6326,
+  "runId": "run-b6iua5-mafsy3",
+  "initialPlayerMode": "nostr",
+  "claims": [
+    {
+      "pubkey": "91fcd1b8dced1bf399d260e33ff2d476f5ee2676950d1bb15b57a932fb440494",
+      "kind": 27235,
+      "runId": "run-b6iua5-mafsy3",
+      "score": 6326,
+      "playerMode": "guest"
+    },
+    {
+      "pubkey": "91fcd1b8dced1bf399d260e33ff2d476f5ee2676950d1bb15b57a932fb440494",
+      "kind": 27235,
+      "runId": "run-b6iua5-mafsy3",
+      "score": 6326,
+      "playerMode": "guest"
+    }
+  ],
+  "status": "CLAIM NETWORK ERROR",
+  "guestSubstitutionObserved": true
+}

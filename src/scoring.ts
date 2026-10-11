@@ -1,3 +1,4 @@
+import { verifyEvent, type Event } from 'nostr-tools/pure';
 import { getReadRelays, getWriteRelays } from './relays.js';
 
 export const GAME_ID = 'neonsentinel';
@@ -20,6 +21,7 @@ export interface RelaykeepRunSummary {
   runId: string;
   playerName?: string;
   playerMode?: 'guest' | 'nostr';
+  playerPubkey?: string;
   score: number;
   wave: number;
   sats: number;
@@ -206,10 +208,30 @@ export function buildClaimInput(summary: RelaykeepRunSummary): ClaimInput {
   };
 }
 
+/** Validate an owned copy, excluding cached verification metadata on signer output. */
+export function verifiedSignedTemplate(value: unknown, pubkey: string, template: {
+  kind: number; created_at: number; content: string; tags: string[][];
+}): Event | null {
+  try {
+    if (!value || typeof value !== 'object') return null;
+    const data = value as Event;
+    const event = {id:data.id, pubkey:data.pubkey, sig:data.sig, kind:data.kind,
+      created_at:data.created_at, content:data.content, tags:data.tags.map(tag=>[...tag])};
+    if (event.pubkey !== pubkey || event.kind !== template.kind ||
+        event.created_at !== template.created_at || event.content !== template.content ||
+        JSON.stringify(event.tags) !== JSON.stringify(template.tags) || !verifyEvent(event)) return null;
+    return event;
+  } catch { return null; }
+}
+
 export async function submitScoreClaim(
   session: ScoreClaimSession,
   summary: RelaykeepRunSummary,
 ): Promise<ClaimResult> {
+  const pubkey = session.pubkey;
+  if (summary.playerMode === 'nostr' && (!summary.playerPubkey || summary.playerPubkey !== pubkey)) {
+    return {ok:false,error:'original_account_required'};
+  }
   const url = `${location.origin}${CLAIM_API}`;
   const bodyJson = JSON.stringify(buildClaimInput(summary));
   const payloadHash = await sha256Hex(bodyJson);
@@ -225,18 +247,23 @@ export async function submitScoreClaim(
   };
 
   let signedAuth: unknown;
+  let signTimer: number | undefined;
   try {
     signedAuth = await Promise.race([
-      session.signer.signEvent(authTemplate),
+      session.signer.signEvent(structuredClone(authTemplate)),
       new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error('signer-timeout')), SIGN_TIMEOUT_MS);
+        signTimer = window.setTimeout(() => reject(new Error('signer-timeout')), SIGN_TIMEOUT_MS);
       }),
     ]);
   } catch (err) {
     return { ok: false, error: 'sign_failed', detail: err instanceof Error ? err.message : String(err) };
+  } finally {
+    if (signTimer !== undefined) window.clearTimeout(signTimer);
   }
 
-  const outcome = await fetchClaimWithRetry(bodyJson, `Nostr ${utf8Base64(JSON.stringify(signedAuth))}`);
+  const signed = verifiedSignedTemplate(signedAuth, pubkey, authTemplate);
+  if (!signed) return {ok:false,error:'sign_failed',detail:'original-account-template-required'};
+  const outcome = await fetchClaimWithRetry(bodyJson, `Nostr ${utf8Base64(JSON.stringify(signed))}`);
   if (!outcome.ok) {
     return { ok: false, error: 'network_error', detail: outcome.error instanceof Error ? outcome.error.message : String(outcome.error) };
   }

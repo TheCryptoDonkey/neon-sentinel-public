@@ -31,6 +31,7 @@ import {
   GAME_ID,
   getLocalScores,
   publishSignedScore,
+  verifiedSignedTemplate,
   submitScoreClaim,
   type ClaimResult,
   type RelaykeepRunSummary,
@@ -12841,6 +12842,7 @@ function recordFinishedRun(): void {
     runId: state.runId,
     playerName: state.playerName,
     playerMode: state.playerMode,
+    playerPubkey: state.playerPubkey ?? undefined,
     score: state.score,
     wave: state.wave,
     sats: state.sats,
@@ -12913,51 +12915,31 @@ async function claimAndPublishScore(summary: RelaykeepRunSummary, prompt: boolea
     }
     activePlayerSession = session;
 
-    // Auth-only arcade sessions carry a signer whose signEvent rejects every
-    // call. Decide the claim-signing identity BEFORE building the NIP-98 body:
-    // an honestly-attributed guest score beats a silently lost one.
-    let signingSession: SignetSession = session;
-    let asGuestFallback = false;
+    if (summary.playerMode === 'nostr' && session.pubkey !== summary.playerPubkey) {
+      setScoreStatus('RECONNECT ORIGINAL ACCOUNT · SCORE KEPT LOCALLY');
+      return null;
+    }
     if (!sessionCanSignEvents(session)) {
-      const guest = await guestClaimSession();
-      if (!guest) {
-        setScoreStatus(prompt ? 'SIGNER NOT READY' : 'SIGN SCORE READY · NO PAYOUT');
-        return null;
-      }
-      signingSession = guest;
-      asGuestFallback = true;
+      setScoreStatus('RECONNECT IN ARCADE · SCORE KEPT LOCALLY');
+      return null;
     }
 
     scoreSubmitInFlight = true;
-    setScoreStatus(asGuestFallback ? 'SIGNING NIP-98 CLAIM AS GUEST' : 'SIGNING NIP-98 CLAIM');
-    let claimSummary: RelaykeepRunSummary = asGuestFallback ? { ...summary, playerMode: 'guest' } : summary;
-    let claim = await submitScoreClaim(signingSession, claimSummary);
-    if (!claim.ok && claim.error === 'sign_failed' && !asGuestFallback && !isGuestSession(signingSession)) {
-      // The signer looked usable but refused at the moment of truth (bunker
-      // offline, arcade socket closed). One retry with the local guest key.
-      const guest = await guestClaimSession();
-      if (guest) {
-        signingSession = guest;
-        asGuestFallback = true;
-        setScoreStatus('SIGNING NIP-98 CLAIM AS GUEST');
-        claimSummary = { ...summary, playerMode: 'guest' };
-        claim = await submitScoreClaim(guest, claimSummary);
-      }
-    }
+    setScoreStatus('SIGNING NIP-98 CLAIM');
+    const claim = await submitScoreClaim(session, summary);
     if (claim.ok) {
       scorePublished = true;
-      setScoreStatus(asGuestFallback
-        ? `GAME 30762 ${shortId(claim.score_event_id)} · AS GUEST (NOSTR SIGNER OFFLINE)`
-        : `GAME 30762 ${shortId(claim.score_event_id)}`);
+      setScoreStatus(`GAME 30762 ${shortId(claim.score_event_id)}`);
       return { kind: 'claim', result: claim };
     }
 
     if (shouldClientPublishFallback(claim)) {
-      const fallback = await publishClientScore(claimSummary, signingSession, scoreClaimErrorLabel(claim));
+      const fallback = await publishClientScore(summary, session, scoreClaimErrorLabel(claim));
       if (fallback) return fallback;
     }
 
-    setScoreStatus(scoreClaimErrorLabel(claim));
+    setScoreStatus(summary.playerMode === 'nostr' && claim.error === 'sign_failed'
+      ? 'RECONNECT IN ARCADE · SCORE KEPT LOCALLY' : scoreClaimErrorLabel(claim));
     return { kind: 'claim', result: claim };
   } catch (err) {
     setScoreStatus(err instanceof Error ? `SIGN FAIL ${err.message.slice(0, 26)}` : 'SIGN FAIL');
@@ -12978,23 +12960,17 @@ function sessionCanSignEvents(session: SignetSession): boolean {
   return signer.capabilities?.canSignEvents !== false;
 }
 
-async function guestClaimSession(): Promise<SignetSession | null> {
-  try {
-    return await restoreGuestSession() ?? await createGuestSession(state.playerName || 'Guest');
-  } catch {
-    return null;
-  }
-}
-
 async function publishClientScore(
   summary: RelaykeepRunSummary,
   session: SignetSession,
   reason = 'CLAIM API OFFLINE',
 ): Promise<ScoreSubmitResult | null> {
   setScoreStatus(`${reason} · SIGNING 30762`);
-  const draft = buildScoreEvent(summary, session.pubkey);
-  const signed = await session.signer.signEvent(draft as unknown as Record<string, unknown>);
-  const results = await publishSignedScore(signed);
+  const pubkey = session.pubkey;
+  const draft = buildScoreEvent(summary, pubkey);
+  const signed = verifiedSignedTemplate(await session.signer.signEvent(structuredClone(draft) as unknown as Record<string, unknown>), pubkey, draft);
+  if (!signed || (summary.playerMode === 'nostr' && signed.pubkey !== summary.playerPubkey)) throw new Error('original-account-signature-required');
+  const results = await publishSignedScore(signed as SignedNostrEvent);
   const ok = results.filter(result => result.ok).length;
   const total = results.length;
   const published = ok > 0;
@@ -13004,7 +12980,7 @@ async function publishClientScore(
     : total > 0
       ? `KIND 30762 SIGNED · RELAY 0/${total}`
       : 'KIND 30762 SIGNED · NO RELAY SOCKET');
-  return { kind: 'client-event', event: signed };
+  return { kind: 'client-event', event: signed as SignedNostrEvent };
 }
 
 function scoreClaimErrorLabel(result: ClaimResult): string {
