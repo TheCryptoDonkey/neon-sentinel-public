@@ -1,0 +1,192 @@
+{
+  "fixture": "Disposable canonical signature fixture against local candidate Neon Sentinel at its canonical game origin. All non-GET HTTP and public relay sockets blocked; normal gameplay; closed parent and title return; no completed provider login or original-account retry proof. No real Signet, physical acceptance or score publication claim.",
+  "results": [
+    {
+      "game": "neon-sentinel",
+      "case": "closed-parent",
+      "origin": "https://neonsentinel.com",
+      "playerPubkey": "14e33a9fff04805a1cd674c3ef73d9e6aa8e416c66c5b7547f6fc11f3a2ace62",
+      "score": 7644,
+      "status": "RECONNECT IN ARCADE \u00b7 SCORE KEPT LOCALLY",
+      "saved": {
+        "scores": [
+          {
+            "runId": "run-b6oxpd-k07gfs",
+            "playerName": "npub 14e33a",
+            "playerMode": "nostr",
+            "playerPubkey": "14e33a9fff04805a1cd674c3ef73d9e6aa8e416c66c5b7547f6fc11f3a2ace62",
+            "score": 7644,
+            "wave": 1,
+            "sats": 0,
+            "startedAt": 1791677731489,
+            "finishedAt": 1791677773671,
+            "durationMs": 42182,
+            "rescues": 1,
+            "knownRescues": 1,
+            "lost": 1,
+            "maxCombo": 4,
+            "metrics": {
+              "deaths": 6,
+              "damageEvents": 6,
+              "shotHitRate": 0.046822742474916385,
+              "shotsFired": 299,
+              "shotsHit": 14,
+              "rescueAverageSeconds": 1.315999999999967,
+              "rescueSlowestSeconds": 1.315999999999967,
+              "lowCampSeconds": 0,
+              "lowCampRatio": 0,
+              "contactsLifted": 2,
+              "contactsDropped": 0,
+              "contactsForged": 1,
+              "topDamageSource": "dart:6",
+              "waveDurations": [
+                {
+                  "wave": 1,
+                  "seconds": 37.00466666666823,
+                  "cleared": false
+                }
+              ]
+            },
+            "at": "2026-10-11T00:16:13.671Z"
+          }
+        ],
+        "claim": {
+          "game": "neonsentinel",
+          "score": 7644,
+          "wave": 1,
+          "duration_ms": 42182,
+          "started_at": 1791677731489,
+          "finished_at": 1791677773671,
+          "credits": 0,
+          "sats_claimed": 0,
+          "run_id": "run-b6oxpd-k07gfs",
+          "rescues": 1,
+          "known_rescues": 1,
+          "lost": 1,
+          "max_combo": 4,
+          "player_name": "npub 14e33a",
+          "player_mode": "nostr",
+          "metrics": {
+            "deaths": 6,
+            "damageEvents": 6,
+            "shotHitRate": 0.046822742474916385,
+            "shotsFired": 299,
+            "shotsHit": 14,
+            "rescueAverageSeconds": 1.315999999999967,
+            "rescueSlowestSeconds": 1.315999999999967,
+            "lowCampSeconds": 0,
+            "lowCampRatio": 0,
+            "contactsLifted": 2,
+            "contactsDropped": 0,
+            "contactsForged": 1,
+            "topDamageSource": "dart:6",
+            "waveDurations": [
+              {
+                "wave": 1,
+                "seconds": 37.00466666666823,
+                "cleared": false
+              }
+            ]
+          },
+          "telemetry": {
+            "scoring_kind": 30762,
+            "sentinel_variant": "nostr",
+            "write_relays": [
+              "wss://main.relay.gamestr.io",
+              "wss://relay.trotters.cc",
+              "wss://nos.lol",
+              "wss://relay.damus.io",
+              "wss://relay.nostr.band",
+              "wss://relay.primal.net",
+              "wss://relay.ditto.pub"
+            ],
+            "profile_read_relays": [
+              "wss://relay.trotters.cc",
+              "wss://nos.lol",
+              "wss://relay.damus.io",
+              "wss://relay.nostr.band",
+              "wss://relay.primal.net",
+              "wss://relay.ditto.pub",
+              "wss://nostr.wine"
+            ]
+          }
+        }
+      },
+      "storedAfter": {
+        "game": "neonsentinel",
+        "score": 7644,
+        "wave": 1,
+        "duration_ms": 42182,
+        "started_at": 1791677731489,
+        "finished_at": 1791677773671,
+        "credits": 0,
+        "sats_claimed": 0,
+        "run_id": "run-b6oxpd-k07gfs",
+        "rescues": 1,
+        "known_rescues": 1,
+        "lost": 1,
+        "max_combo": 4,
+        "player_name": "npub 14e33a",
+        "player_mode": "nostr",
+        "metrics": {
+          "deaths": 6,
+          "damageEvents": 6,
+          "shotHitRate": 0.046822742474916385,
+          "shotsFired": 299,
+          "shotsHit": 14,
+          "rescueAverageSeconds": 1.315999999999967,
+          "rescueSlowestSeconds": 1.315999999999967,
+          "lowCampSeconds": 0,
+          "lowCampRatio": 0,
+          "contactsLifted": 2,
+          "contactsDropped": 0,
+          "contactsForged": 1,
+          "topDamageSource": "dart:6",
+          "waveDurations": [
+            {
+              "wave": 1,
+              "seconds": 37.00466666666823,
+              "cleared": false
+            }
+          ]
+        },
+        "telemetry": {
+          "scoring_kind": 30762,
+          "sentinel_variant": "nostr",
+          "write_relays": [
+            "wss://main.relay.gamestr.io",
+            "wss://relay.trotters.cc",
+            "wss://nos.lol",
+            "wss://relay.damus.io",
+            "wss://relay.nostr.band",
+            "wss://relay.primal.net",
+            "wss://relay.ditto.pub"
+          ],
+          "profile_read_relays": [
+            "wss://relay.trotters.cc",
+            "wss://nos.lol",
+            "wss://relay.damus.io",
+            "wss://relay.nostr.band",
+            "wss://relay.primal.net",
+            "wss://relay.ditto.pub",
+            "wss://nostr.wine"
+          ]
+        }
+      },
+      "claims": [],
+      "signedRequests": 0,
+      "initialTimeoutKeepsLocalScore": true,
+      "signedInTitleRestored": true,
+      "initialGuestFallbackBlocked": true,
+      "storedClaimHasPlayerPubkey": false,
+      "physicalDevice": false,
+      "actualMySignet": false,
+      "gameOrScoreStateInjected": false,
+      "externalWritesBlocked": true,
+      "originalAccountRetryQualified": false
+    }
+  ],
+  "candidateSourceRevision": "17ebd843e16f667dc074a2b0ad37725549c6c486",
+  "exactBuiltEntryFingerprintRecorded": false,
+  "qualification": "Personal-score closed-parent path passes against the private candidate build. Exact entry fingerprint was not captured; final publication verification remains required."
+}

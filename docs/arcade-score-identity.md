@@ -16,8 +16,14 @@ available. Signing failure keeps the local result and requests reconnect.
 
 The first five regression tests produce four failures and one pass on unchanged
 source. The corrected suite also checks missing personal ownership and explicit
-guest signing. The complete unit suite, type checks and client/server builds
-pass. A private normal-play browser check is in progress.
+guest signing. All 89 unit tests, type checks and client/server builds pass. A private
+normal-play browser check earns 7,644 points with the parent closed, retains
+the local result after signing timeout, sends no guest claim, and returns to
+the signed-in title. The fixture clears its text observations before checking
+the title; an earlier literal NOSTR label expectation was corrected to the
+actual signed-in control. See
+[candidate journey](evidence/neon-candidate-closed-parent.json). Exact entry
+fingerprinting and complete reconnect/reload recovery remain pending.
 
 This is a draft candidate. It is not published or physically accepted. A
 selectable persisted personal-score retry panel, complete same-account
