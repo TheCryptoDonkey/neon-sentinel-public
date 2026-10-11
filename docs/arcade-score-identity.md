@@ -146,3 +146,29 @@ A read-only check finds two valid confirmed legacy rows in the default server
 history, with no unconfirmed legacy rows; actual environment/state-path and
 checked-artifact deployment verification remain required. Production remains
 unchanged until the full candidate gate passes.
+
+## Neon checked client and delayed-recovery API deployed
+
+Hosted run 38118761030 succeeds at `046a822`: 101 units, typechecks,
+compiled-API delayed/restart/idempotency gate, private account-bound recovery
+and actual SDK keyboard/modal checks. Both client and API are deployed from
+archived checked artifacts. All 107 static files and both API files match
+before activation. Public browser GET checks match six startup/runtime files
+and boot without page errors at 390 × 844.
+
+The API restarts from PID 480607 to 1140368. Its environment metadata and
+game authority remain unchanged; the actual process state path is checked.
+Both existing confirmed score records remain in the original journal and
+are loaded by the new API, with a private pre-cutover backup. No history is
+rewritten or restored. The durable on-disk key remains compatible with the
+previous API; old code/client releases remain available for rollback.
+
+The previous ten-minute submission mismatch is repaired in the deployed
+code. Seven-day-old recovery and same-event republication are private
+compiled-API evidence, not actual My Signet publication. Explicit receipt
+removal and focused-control protection pass the private browser gate.
+Current real provider recovery, physical signers and payment settlement
+remain unqualified. See [public verification](evidence/neon-live-046a822.json),
+[API activation](evidence/neon-api-live-046a822.json),
+[checked recovery](evidence/neon-recovery-checked-046a822.json) and
+[checked SDK modal](evidence/neon-modal-checked-046a822.json).

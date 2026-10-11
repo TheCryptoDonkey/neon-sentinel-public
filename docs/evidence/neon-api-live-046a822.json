@@ -1,0 +1,20 @@
+{
+  "revision": "046a822da97b059ee048f5240add89eaf58871a1",
+  "checkedWorkflowRun": 38118761030,
+  "checkedWorkflowConclusion": "success",
+  "staticFilesVerified": 107,
+  "apiFilesVerified": 2,
+  "apiSha256": "640f0af55dd49ff079ca4e55228b1e545e823384d8d5452663b518197ce3d1e0",
+  "previousRelease": "/opt/neonsentinel/releases/arcade-59f6452-38104841854",
+  "currentRelease": "/opt/neonsentinel/releases/arcade-046a822-38118761030",
+  "oldApiPid": 480607,
+  "newApiPid": 1140368,
+  "apiRestarted": true,
+  "apiEnvironmentChanged": false,
+  "gameAuthorityUnchanged": true,
+  "oldHistoryRowsPreserved": 2,
+  "historyBackup": "/var/lib/neonsentinel/claims.pre-046a822-38118761030.jsonl",
+  "claimsSeen": 2,
+  "realProviderRecovery": false,
+  "physicalDevice": false
+}
