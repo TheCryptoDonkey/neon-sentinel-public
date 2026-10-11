@@ -1096,3 +1096,13 @@ body[data-neon-phase="gameover"] #score-actions {
     left: max(14px, env(safe-area-inset-left));
   }
 }
+
+#score-recovery-open { position:fixed; top:max(12px, env(safe-area-inset-top)); right:12px; z-index:20; min-height:44px; padding:10px 14px; color:#fff5d8; background:#082329; border:1px solid #5effdb; border-radius:8px; }
+#score-recovery-open[hidden] {display:none;}
+#score-recovery {box-sizing:border-box; width:min(520px,calc(100vw - 24px)); max-height:85svh; overflow:auto; padding:22px; color:#fff5d8; background:#071b24; border:2px solid #5effdb; border-radius:12px; font-family:ui-monospace,monospace;}
+#score-recovery::backdrop {background:rgba(0,0,0,.78);}
+#score-recovery p {line-height:1.5;}
+#score-recovery select {box-sizing:border-box; width:100%; min-height:44px; color:#fff5d8; background:#12313b; padding:8px; border:1px solid #5effdb;}
+.score-recovery-buttons {display:flex; flex-wrap:wrap; gap:10px;}
+.score-recovery-buttons button {min-height:44px; padding:10px 14px; color:#fff5d8; background:#12313b; border:1px solid #5effdb; border-radius:6px;}
+.score-recovery-buttons button:disabled {opacity:.6;}

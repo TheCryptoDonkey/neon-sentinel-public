@@ -119,7 +119,21 @@
     </div>
     <span id="score-action-status">LOCAL SCORE · NO PAYOUT</span>
   </div>
-  <script src="/signet/signet-login.iife.js" defer></script>
+  <button id="score-recovery-open" type="button" hidden>SAVED SCORES</button>
+  <dialog id="score-recovery" aria-labelledby="score-recovery-title">
+    <h2 id="score-recovery-title">Your saved scores</h2>
+    <p>Reconnect your original account and retry a completed run. You do not need to play it again.</p>
+    <label for="score-recovery-runs">Saved run</label>
+    <select id="score-recovery-runs"></select>
+    <p id="score-recovery-status" role="status" aria-live="polite"></p>
+    <div class="score-recovery-buttons">
+      <button id="score-recovery-reconnect" type="button">RECONNECT ACCOUNT</button>
+      <button id="score-recovery-retry" type="button">RETRY SELECTED RUN</button>
+      <button id="score-recovery-remove" type="button">REMOVE SELECTED RUN</button>
+      <button id="score-recovery-close" type="button">CLOSE</button>
+    </div>
+  </dialog>
+  <script src="/signet/signet-login-0.17.3.iife.js" defer></script>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

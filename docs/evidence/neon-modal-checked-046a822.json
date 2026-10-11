@@ -1,0 +1,27 @@
+{
+  "fixture": "Private seeded public receipt and restored identity; real locked SDK picker, blocked external writes and sockets.",
+  "assets": [
+    {
+      "path": "/assets/index-V3pMRgTx.js",
+      "sha256": "b22b39055447cb6ff795c75dfce39b04ec7c2fd15f81f5bdc3cdee01dea971e5"
+    },
+    {
+      "path": "/assets/mesh-overlay-DoPsL5Eg.js",
+      "sha256": "123f049bbc381a53f2f7fbcb3dddd22d218b142ef8778e359c550628a01ad72b"
+    },
+    {
+      "path": "/assets/three-D0v8yklM.js",
+      "sha256": "c1f53931b5190e7fc2c63c78cbb53e398a3e61b84044e760f68b86b1e087b711"
+    }
+  ],
+  "actualMySignet": false,
+  "physicalDevice": false,
+  "externalWritesBlocked": true,
+  "acceleratedAttract": true,
+  "nativeEnterActivatesSdk": true,
+  "idleDemoBlockedDuringDialog": true,
+  "focusedRecoveryControlBlocksIdleDemo": true,
+  "dialogGuardCheckedWithoutControlFocus": true,
+  "nativeEscapeCancelsSdk": true,
+  "cancelKeepsOriginalReceipt": true
+}

@@ -1,0 +1,63 @@
+{
+  "origin": "https://neonsentinel.com",
+  "revision": "59f6452bfb4da6c134bce9f9301954f28c0f67e0",
+  "version": {
+    "build": "20261011022055",
+    "revision": "59f6452bfb4da6c134bce9f9301954f28c0f67e0"
+  },
+  "checkedWorkflowRun": 38104841854,
+  "checkedWorkflowConclusion": "success",
+  "files": [
+    {
+      "path": "/index.html",
+      "sha256": "15a2ffa28aafa901c51214f2bc7ec0f53cc7573b5ea97b36e66e3e7d8bb9d0c2",
+      "status": 200,
+      "cacheControl": "no-cache"
+    },
+    {
+      "path": "/version.json",
+      "sha256": "556ca5d0d7e60e5c3cb86db536cb80df2b118601637ae96eb956028352d7a644",
+      "status": 200,
+      "cacheControl": "no-cache, must-revalidate"
+    },
+    {
+      "path": "/sw.js",
+      "sha256": "08b2e48dc157eb3dedf7b1691d50395037738372eda9a4b54c683a2886c9e598",
+      "status": 200,
+      "cacheControl": "max-age=14400, must-revalidate"
+    },
+    {
+      "path": "/signet/signet-login-0.17.3.iife.js",
+      "sha256": "d689b4e72aa562b3fe3272504057d7b1b474a89f19bc1c4ec03c20c4245fb1be",
+      "status": 200,
+      "cacheControl": "max-age=14400"
+    },
+    {
+      "path": "/assets/index-D9wOqQVo.js",
+      "sha256": "341a9686dea008f08d4a86466547b138afe8b0f2d9793851452f8de409bf91a5",
+      "status": 200,
+      "cacheControl": "public, max-age=31536000, immutable"
+    },
+    {
+      "path": "/assets/index-DqCSlrae.css",
+      "sha256": "af11b3225bbe6854cff00e9094cdddba77e852f4e27e76be2c33f07296bda338",
+      "status": 200,
+      "cacheControl": "public, max-age=31536000, immutable"
+    }
+  ],
+  "actualPublicDns": true,
+  "staticClientOnly": true,
+  "apiPidUnchanged": 480607,
+  "apiEnvironmentChanged": false,
+  "serverFilesUnchanged": true,
+  "browserStartup": true,
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "externalWritesBlocked": true,
+  "actualMySignet": false,
+  "physicalDevice": false,
+  "paymentSettlement": false,
+  "at": "2026-10-11T02:29:40.207Z"
+}

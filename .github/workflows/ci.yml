@@ -24,7 +24,91 @@ jobs:
         run: npm test
 
       - name: Build client
+        env:
+          NEON_SOURCE_REVISION: ${{ github.sha }}
         run: npm run build:client
 
       - name: Build server
         run: npm run build:server
+
+      - name: Verify durable delayed score acceptance
+        run: npm run test:claim-recovery
+
+      - name: Fingerprint checked API
+        run: |
+          node --input-type=module -e "import {readFileSync,writeFileSync} from 'node:fs'; import {createHash} from 'node:crypto'; const path='server-dist/index.js'; writeFileSync('neon-api-manifest.json',JSON.stringify({revision:process.env.GITHUB_SHA,path,sha256:createHash('sha256').update(readFileSync(path)).digest('hex')},null,2)+'\n');"
+
+      - name: Archive checked API
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: checked-api
+          path: |
+            server-dist/index.js
+            server-dist/index.js.map
+            neon-api-manifest.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Install recovery browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify account-bound score recovery
+        env:
+          NEON_RECOVERY_EVIDENCE: ${{ github.workspace }}/neon-recovery-evidence.json
+        run: npm run test:score-recovery
+
+      - name: Verify real SDK keyboard ownership
+        env:
+          NEON_RECOVERY_EVIDENCE: ${{ github.workspace }}/neon-keyboard-evidence.json
+        run: npm run test:signet-keyboard
+
+      - name: Archive checked client
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: checked-client
+          path: dist
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Archive recovery proof
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: score-recovery-proof
+          path: neon-recovery-evidence.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Fingerprint every checked client file
+        run: node tools/client-manifest.mjs
+
+      - name: Archive checked client manifest
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: checked-client-manifest
+          path: neon-client-manifest.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Archive checked client code
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: checked-client-code
+          path: |
+            dist/index.html
+            dist/version.json
+            dist/assets/
+            dist/signet/
+            dist/sw.js
+            dist/manifest.webmanifest
+            dist/privacy.html
+            dist/support.html
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Archive SDK keyboard proof
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: signet-keyboard-proof
+          path: neon-keyboard-evidence.json
+          retention-days: 14
+          if-no-files-found: error

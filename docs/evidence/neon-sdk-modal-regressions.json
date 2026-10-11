@@ -1,0 +1,40 @@
+{
+  "keyboardBeforeGuard": {
+    "fixture": "Private seeded public receipts and restored identity, real SDK picker, external writes/sockets blocked",
+    "phase": "title",
+    "signetLinkVisible": false,
+    "v4vVisible": true
+  },
+  "idleAfterKeyboardGuardBeforeIdleGuard": {
+    "fixture": "Private seeded public receipts and restored identity, real SDK picker, external writes/sockets blocked",
+    "phase": "playing",
+    "signetLinkVisible": true,
+    "v4vVisible": false
+  },
+  "fixed": {
+    "fixture": "Private seeded public receipt and restored identity; real locked SDK picker, blocked external writes and sockets.",
+    "assets": [
+      {
+        "path": "/assets/index-CcvWOS8J.js",
+        "sha256": "a52f73b00fce4eaa665c07b4307e0af9328b1cacb081ed80c4b5c8659e265434"
+      },
+      {
+        "path": "/assets/mesh-overlay-CDMQtnfA.js",
+        "sha256": "aa493b0e3f1b8c1e94e3e586864d8060b092bfcd5dfe076b6fff66ada841a03e"
+      },
+      {
+        "path": "/assets/three-D0v8yklM.js",
+        "sha256": "c1f53931b5190e7fc2c63c78cbb53e398a3e61b84044e760f68b86b1e087b711"
+      }
+    ],
+    "actualMySignet": false,
+    "physicalDevice": false,
+    "externalWritesBlocked": true,
+    "acceleratedAttract": true,
+    "nativeEnterActivatesSdk": true,
+    "idleDemoBlockedDuringDialog": true,
+    "nativeEscapeCancelsSdk": true,
+    "cancelKeepsOriginalReceipt": true
+  },
+  "fixtureBoundaries": "Private public receipts, real SDK picker with restored identity stub, all external writes and relay sockets blocked. Baselines are local versioned-SDK candidate builds; no real provider login or publication."
+}

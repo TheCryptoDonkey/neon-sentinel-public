@@ -1,0 +1,90 @@
+{
+  "origin": "https://neonsentinel.com",
+  "revision": "046a822da97b059ee048f5240add89eaf58871a1",
+  "version": {
+    "build": "20261011063939",
+    "revision": "046a822da97b059ee048f5240add89eaf58871a1"
+  },
+  "checkedWorkflowRun": 38118761030,
+  "checkedWorkflowConclusion": "success",
+  "files": [
+    {
+      "path": "/index.html",
+      "sha256": "c093c68ce821c208cd4aab715273bb6884143b8a456f4ad03d4eee2f8a36900f",
+      "status": 200,
+      "cacheControl": "no-cache"
+    },
+    {
+      "path": "/version.json",
+      "sha256": "197eb16757af098526c631292a4f57991fd6ea0a32169e1c412320c728d702d9",
+      "status": 200,
+      "cacheControl": "no-cache, must-revalidate"
+    },
+    {
+      "path": "/sw.js",
+      "sha256": "08b2e48dc157eb3dedf7b1691d50395037738372eda9a4b54c683a2886c9e598",
+      "status": 200,
+      "cacheControl": "max-age=14400, must-revalidate"
+    },
+    {
+      "path": "/signet/signet-login-0.17.3.iife.js",
+      "sha256": "d689b4e72aa562b3fe3272504057d7b1b474a89f19bc1c4ec03c20c4245fb1be",
+      "status": 200,
+      "cacheControl": "max-age=14400"
+    },
+    {
+      "path": "/assets/index-V3pMRgTx.js",
+      "sha256": "b22b39055447cb6ff795c75dfce39b04ec7c2fd15f81f5bdc3cdee01dea971e5",
+      "status": 200,
+      "cacheControl": "public, max-age=31536000, immutable"
+    },
+    {
+      "path": "/assets/index-DqCSlrae.css",
+      "sha256": "af11b3225bbe6854cff00e9094cdddba77e852f4e27e76be2c33f07296bda338",
+      "status": 200,
+      "cacheControl": "public, max-age=31536000, immutable"
+    }
+  ],
+  "actualPublicDns": true,
+  "staticClientOnly": false,
+  "apiPid": 1140368,
+  "apiRestarted": true,
+  "apiEnvironmentChanged": false,
+  "apiSha256": "640f0af55dd49ff079ca4e55228b1e545e823384d8d5452663b518197ce3d1e0",
+  "gameAuthorityUnchanged": true,
+  "oldHistoryRowsPreserved": 2,
+  "browserStartup": true,
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "externalWritesBlocked": true,
+  "actualMySignet": false,
+  "physicalDevice": false,
+  "paymentSettlement": false,
+  "at": "2026-10-11T06:45:11.193Z",
+  "publicApiHealthBrowser": [
+    {
+      "path": "/api/claim/health",
+      "status": 200,
+      "ok": true,
+      "signerConfigured": true,
+      "claimsSeen": 2,
+      "publishEnabled": true
+    },
+    {
+      "path": "/healthz",
+      "status": 200,
+      "ok": true,
+      "signerConfigured": true,
+      "claimsSeen": 2,
+      "publishEnabled": true
+    }
+  ],
+  "productionNodeVersion": "22.23.2",
+  "nonBrowserHealthProbe": {
+    "client": "Python urllib",
+    "status": 403,
+    "causeEstablished": false
+  }
+}

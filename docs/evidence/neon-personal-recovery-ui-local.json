@@ -1,0 +1,126 @@
+{
+  "fixture": "Private candidate recovery UI; canonical fixture Signet, seeded public receipts, all external writes and public relay sockets blocked. Simulated publisher acknowledgements, no real My Signet or publication.",
+  "assets": [
+    {
+      "path": "/assets/index-CBom_VLD.js",
+      "sha256": "88431ae8354802422d03fc7e9308497ad6b6b295cf81f4a61c883e46fe6b024f"
+    },
+    {
+      "path": "/assets/index-CBom_VLD.js",
+      "sha256": "88431ae8354802422d03fc7e9308497ad6b6b295cf81f4a61c883e46fe6b024f"
+    },
+    {
+      "path": "/assets/index-CBom_VLD.js",
+      "sha256": "88431ae8354802422d03fc7e9308497ad6b6b295cf81f4a61c883e46fe6b024f"
+    },
+    {
+      "path": "/assets/index-CBom_VLD.js",
+      "sha256": "88431ae8354802422d03fc7e9308497ad6b6b295cf81f4a61c883e46fe6b024f"
+    }
+  ],
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "serviceWorkers": "block",
+  "reload": true,
+  "sdkDelayedMs": 500,
+  "invalidCallbackRejected": true,
+  "validCallbackRestoresIdentity": true,
+  "accountIsolation": true,
+  "wrongAccountReconnectRejected": true,
+  "originalAccountReconnect": true,
+  "pendingControlsDisabled": true,
+  "unconfirmedReceiptRetained": true,
+  "exactConfirmedReceiptCleared": true,
+  "otherRunsPreserved": true,
+  "keyboardDoesNotStartGameFromDialog": true,
+  "minimumControlHeight": 44,
+  "signatures": 2,
+  "claims": [
+    {
+      "pubkey": "503cdf771ab15f32face8e656912195b2f17894fadf6c2d82417ee62b3ab949f",
+      "payload": {
+        "game": "neonsentinel",
+        "score": 6326,
+        "wave": 2,
+        "duration_ms": 45000,
+        "started_at": 1791679110576,
+        "finished_at": 1791679155576,
+        "credits": 0,
+        "sats_claimed": 0,
+        "run_id": "saved-one",
+        "rescues": 2,
+        "known_rescues": 2,
+        "lost": 1,
+        "max_combo": 5,
+        "player_mode": "nostr",
+        "telemetry": {
+          "scoring_kind": 30762,
+          "sentinel_variant": "nostr",
+          "write_relays": [
+            "wss://main.relay.gamestr.io",
+            "wss://relay.trotters.cc",
+            "wss://nos.lol",
+            "wss://relay.damus.io",
+            "wss://relay.nostr.band",
+            "wss://relay.primal.net",
+            "wss://relay.ditto.pub"
+          ],
+          "profile_read_relays": [
+            "wss://relay.trotters.cc",
+            "wss://nos.lol",
+            "wss://relay.damus.io",
+            "wss://relay.nostr.band",
+            "wss://relay.primal.net",
+            "wss://relay.ditto.pub",
+            "wss://nostr.wine"
+          ]
+        }
+      }
+    },
+    {
+      "pubkey": "503cdf771ab15f32face8e656912195b2f17894fadf6c2d82417ee62b3ab949f",
+      "payload": {
+        "game": "neonsentinel",
+        "score": 6326,
+        "wave": 2,
+        "duration_ms": 45000,
+        "started_at": 1791679110576,
+        "finished_at": 1791679155576,
+        "credits": 0,
+        "sats_claimed": 0,
+        "run_id": "saved-one",
+        "rescues": 2,
+        "known_rescues": 2,
+        "lost": 1,
+        "max_combo": 5,
+        "player_mode": "nostr",
+        "telemetry": {
+          "scoring_kind": 30762,
+          "sentinel_variant": "nostr",
+          "write_relays": [
+            "wss://main.relay.gamestr.io",
+            "wss://relay.trotters.cc",
+            "wss://nos.lol",
+            "wss://relay.damus.io",
+            "wss://relay.nostr.band",
+            "wss://relay.primal.net",
+            "wss://relay.ditto.pub"
+          ],
+          "profile_read_relays": [
+            "wss://relay.trotters.cc",
+            "wss://nos.lol",
+            "wss://relay.damus.io",
+            "wss://relay.nostr.band",
+            "wss://relay.primal.net",
+            "wss://relay.ditto.pub",
+            "wss://nostr.wine"
+          ]
+        }
+      }
+    }
+  ],
+  "physicalDevice": false,
+  "actualMySignet": false
+}

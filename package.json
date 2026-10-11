@@ -11,16 +11,23 @@
     "build:server": "vite build --config vite.server.config.ts",
     "smoke:visual": "node tools/visual-smoke.mjs",
     "typecheck": "tsc --noEmit && tsc --noEmit --project tsconfig.server.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "sync:sdk": "node tools/sync-signet-sdk.mjs",
+    "prebuild:client": "node tools/sync-signet-sdk.mjs --check",
+    "test:score-recovery": "node tools/score-recovery-smoke.mjs",
+    "test:signet-keyboard": "node tools/signet-keyboard-smoke.mjs",
+    "test:claim-recovery": "node tools/claim-recovery-smoke.mjs"
   },
   "dependencies": {
     "@types/three": "^0.184.1",
     "qrcode-generator": "^2.0.4",
+    "signet-login": "0.17.3",
     "three": "^0.184.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",
     "nostr-tools": "^2.23.5",
+    "playwright": "1.64.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
     "vitest": "^4.1.9"

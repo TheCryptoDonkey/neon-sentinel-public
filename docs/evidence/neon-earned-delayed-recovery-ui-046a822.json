@@ -1,0 +1,27 @@
+{
+  "arcadeRevision": "4aa7661d9d18887021c1b044747980dc091c2bf6",
+  "playerPubkey": "f4ff4ad435185798531cab948331edee9b00ffe5f60e7653f0ce399e0b88c0c2",
+  "physicalDevice": false,
+  "results": [
+    {
+      "origin": "https://arcade.600.wtf",
+      "forcedHetznerOrigin": true,
+      "game": "neonsentinel",
+      "eventId": "04c959e686a6ef45de3a2f5e7d00710658df57f1334bd0f82eb8a96be467aa27",
+      "playerPubkey": "f4ff4ad435185798531cab948331edee9b00ffe5f60e7653f0ce399e0b88c0c2",
+      "score": 5566,
+      "attribution": "REVIEWED GAME AUTHORITY",
+      "actualRelayRead": true
+    },
+    {
+      "origin": "https://gamestr.62-238-98-53.sslip.io",
+      "forcedHetznerOrigin": false,
+      "game": "neonsentinel",
+      "eventId": "04c959e686a6ef45de3a2f5e7d00710658df57f1334bd0f82eb8a96be467aa27",
+      "playerPubkey": "f4ff4ad435185798531cab948331edee9b00ffe5f60e7653f0ce399e0b88c0c2",
+      "score": 5566,
+      "attribution": "REVIEWED GAME AUTHORITY",
+      "actualRelayRead": true
+    }
+  ]
+}

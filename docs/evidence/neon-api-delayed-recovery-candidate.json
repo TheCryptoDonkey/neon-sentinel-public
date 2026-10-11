@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "runAgeDays": 7,
+  "restartRecovery": true,
+  "sameEventRepublished": true,
+  "immutableRun": true,
+  "concurrentDeduplication": true,
+  "freshNip98Required": true,
+  "legacyMissingEventFailsClosed": true,
+  "corruptHistoryFailsClosed": true,
+  "externalNetwork": false,
+  "liveProvider": false,
+  "qualification": "private compiled API; disposable keys; publication and registry transports restricted to fixtures; not deployed"
+}

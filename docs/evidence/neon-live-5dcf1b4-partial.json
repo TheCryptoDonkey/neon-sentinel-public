@@ -1,0 +1,23 @@
+{
+  "revision": "5dcf1b4adba6536f7d1db95f96759eb42eee0da6",
+  "run": 38099407492,
+  "checkedArtifactZipSha256": "fd10ba4a3b33df6b7d03f5c306f66ed142d85ca3f528151a638d809beba204fd",
+  "staticFilesMatch": 106,
+  "apiFilesUnchanged": 99,
+  "apiPidUnchanged": 480607,
+  "release": "/opt/neonsentinel/releases/arcade-5dcf1b4-38099407492",
+  "publicVerification": {
+    "passedPaths": [
+      "/index.html",
+      "/version.json",
+      "/sw.js"
+    ],
+    "failedPath": "/signet/signet-login.iife.js",
+    "expectedSha256": "d689b4e72aa562b3fe3272504057d7b1b474a89f19bc1c4ec03c20c4245fb1be",
+    "actualSha256": "6bf011f4bd9864adfc3a7d8f2163c285a6a7830fdca08ec735e5260acd9db368",
+    "actualMatchesPreviousRelease": true,
+    "complete": false
+  },
+  "actualMySignetRecoveryQualified": false,
+  "physicalDevice": false
+}
